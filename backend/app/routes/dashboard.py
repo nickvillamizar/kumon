@@ -9,11 +9,11 @@ Expone:
   - GET /api/v1/dashboard/jobs/recientes -> Ultimos 10 jobs
   - GET /api/v1/dashboard/health         -> Verificar conexion BD
 """
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from config.database import get_db
@@ -40,7 +40,6 @@ router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 
 
 def _safe_count(db: Session, query) -> int:
-    """Ejecuta un conteo y retorna 0 si hay error de columna inexistente."""
     try:
         return query.scalar() or 0
     except Exception:
@@ -150,12 +149,13 @@ async def get_prospectos(
             .order_by(TestResult.created_at.desc())
             .first()
         )
-        last_job = (
-            db.query(ProcessingJob)
-            .filter(ProcessingJob.id_prospecto == prospecto.id_prospecto)
-            .order_by(ProcessingJob.created_at.desc())
-            .first()
-        )
+        last_job_row = db.execute(
+            text(
+                "SELECT id_job, status, created_at FROM processing.processingjobs "
+                "WHERE id_prospecto = :pid ORDER BY created_at DESC LIMIT 1"
+            ),
+            {"pid": prospecto.id_prospecto},
+        ).fetchone()
 
         has_boletin = False
         if last_result:
@@ -183,7 +183,7 @@ async def get_prospectos(
             percentage=last_result.percentage if last_result else None,
             fecha_resultado=last_result.created_at if last_result else None,
             tiene_boletin=has_boletin,
-            job_id=str(last_job.id_job) if last_job else None,
+            job_id=str(last_job_row.id_job) if last_job_row else None,
         )
         items.append(item)
 
@@ -201,46 +201,67 @@ async def get_prospectos(
     summary="Ultimos 10 jobs del sistema",
 )
 async def get_jobs_recientes(db: Session = Depends(get_db)) -> JobsRecientesResponse:
-    total_jobs = db.query(func.count(ProcessingJob.id_job)).scalar() or 0
-    jobs = (
-        db.query(ProcessingJob)
-        .order_by(ProcessingJob.created_at.desc())
-        .limit(10)
-        .all()
-    )
+    """
+    Retorna los ultimos 10 jobs usando solo columnas que existen en la BD real.
+    Evita columnas source_type y completed_at que pueden no estar en el schema.
+    """
+    total_jobs = _safe_count(db, db.query(func.count(ProcessingJob.id_job)))
+
+    # Query raw con solo las columnas garantizadas
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                j.id_job,
+                j.id_estudiante,
+                j.id_prospecto,
+                j.id_template,
+                j.status,
+                j.progress_percent,
+                j.error_message,
+                j.created_at,
+                e.nombre_completo AS nombre_estudiante,
+                p.nombre_completo AS nombre_prospecto,
+                t.code AS test_code,
+                t.subject AS subject,
+                r.semaforo,
+                r.percentage
+            FROM processing.processingjobs j
+            LEFT JOIN admin.estudiantes e ON e.id_estudiante = j.id_estudiante
+            LEFT JOIN processing.prospectos p ON p.id_prospecto = j.id_prospecto
+            LEFT JOIN processing.testtemplates t ON t.id_template = j.id_template
+            LEFT JOIN processing.testresults r ON r.id_job = j.id_job
+            ORDER BY j.created_at DESC
+            LIMIT 10
+            """
+        )
+    ).fetchall()
 
     items = []
-    for job in jobs:
-        if job.is_prospecto and job.prospecto:
-            nombre_sujeto = job.prospecto.nombre_completo
-            tipo_sujeto = "prospecto"
-        elif job.is_estudiante and job.estudiante:
-            nombre_sujeto = job.estudiante.nombre_completo
+    for row in rows:
+        if row.id_estudiante and row.nombre_estudiante:
+            nombre_sujeto = row.nombre_estudiante
             tipo_sujeto = "estudiante"
+        elif row.id_prospecto and row.nombre_prospecto:
+            nombre_sujeto = row.nombre_prospecto
+            tipo_sujeto = "prospecto"
         else:
             nombre_sujeto = "Desconocido"
             tipo_sujeto = "desconocido"
 
-        result = job.test_result
-        test_code = result.template.code if result and result.template else None
-        subject = result.template.subject if result and result.template else None
-        semaforo = result.semaforo if result else None
-        percentage = result.percentage if result else None
-        completed_at_val = getattr(job, "completed_at", None)
-
         item = JobRecenteItemResponse(
-            id_job=job.id_job,
-            status=job.status,
-            progress_percent=job.progress_percent,
+            id_job=row.id_job,
+            status=row.status,
+            progress_percent=row.progress_percent,
             tipo_sujeto=tipo_sujeto,
             nombre_sujeto=nombre_sujeto,
-            test_code=test_code,
-            subject=subject,
-            semaforo=semaforo,
-            percentage=percentage,
-            created_at=job.created_at,
-            completed_at=completed_at_val,
-            error_message=job.error_message,
+            test_code=row.test_code,
+            subject=row.subject,
+            semaforo=row.semaforo,
+            percentage=row.percentage,
+            created_at=row.created_at,
+            completed_at=None,
+            error_message=row.error_message,
         )
         items.append(item)
 
