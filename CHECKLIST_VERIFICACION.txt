@@ -1,0 +1,315 @@
+════════════════════════════════════════════════════════════════════════════════
+  KUMON AUTOMATIZACIÓN — CHECKLIST DE VERIFICACIÓN FINAL
+  Sistema de Integración Backend (PostgreSQL) + Frontend (Dashboard Real)
+════════════════════════════════════════════════════════════════════════════════
+
+TODO LO QUE SE HIZO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ 1. .env ACTUALIZADO
+   Ubicación: backend/.env
+   Variables: DATABASE_URL, SECRET_KEY, ENVIRONMENT, DEBUG, CORS, etc.
+   Estado: LISTO (actualizado con credenciales correctas para desarrollo local)
+
+✅ 2. SCHEMAS PYDANTIC CREADOS
+   Ubicación: backend/app/schemas/dashboard.py
+   Contenido:
+      - DashboardStatsResponse (KPIs generales)
+      - ProspectoItemResponse (individual + su último resultado)
+      - ProspectosPageResponse (lista paginada)
+      - JobRecenteItemResponse (item de job)
+      - JobsRecientesResponse (últimos 10 jobs)
+      - DashboardHealthResponse (health check)
+   Estado: NUEVO ARCHIVO CREADO
+
+✅ 3. ENDPOINTS BACKEND CREADOS
+   Ubicación: backend/app/routes/dashboard.py
+   Endpoints:
+      - GET /api/v1/dashboard/stats       → KPIs generales
+      - GET /api/v1/dashboard/prospectos  → Lista paginada de prospectos
+      - GET /api/v1/dashboard/jobs/recientes → Últimos 10 jobs
+      - GET /api/v1/dashboard/health      → Verificar conexión BD
+   Estado: NUEVO ARCHIVO CREADO
+
+✅ 4. ROUTER REGISTRADO EN main.py
+   Ubicación: backend/app/main.py
+   Cambio: app.include_router(dashboard.router)
+   Estado: REGISTRADO
+
+✅ 5. FRONTEND CONECTADO A BACKEND
+   Ubicación: frontend/edupanel_FINAL.html
+   Cambios:
+      - API_BASE = 'http://localhost:8000' (configurable)
+      - Nuevas funciones: loadDashboardStats(), loadProspectos(), loadRecentJobs(), etc.
+      - autorefresh cada 30 segundos
+      - Los gráficos y tablas ahora muestran datos REALES de la BD
+   Estado: ACTUALIZADO
+
+
+════════════════════════════════════════════════════════════════════════════════
+  INSTRUCCIONES PARA CORRER TODO EN WINDOWS POWERSHELL
+════════════════════════════════════════════════════════════════════════════════
+
+PASO 1: VERIFICAR QUE POSTGRESQL ESTÁ INSTALADO Y FUNCIONANDO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # Verificar que PostgreSQL responde
+  psql --version
+
+  # Si no está instalado, descargar de: https://www.postgresql.org/download/windows/
+  # Usa credenciales: usuario=postgres, contraseña=postgres (o la que pusiste)
+
+  # Conectar a PostgreSQL
+  psql -U postgres
+
+  # Una vez dentro, crear la base de datos (si no existe)
+  CREATE DATABASE kumon_db;
+
+  # Verificar que existe
+  \l
+
+  # Salir
+  \q
+
+
+PASO 2: NAVEGAR AL DIRECTORIO DEL PROYECTO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  cd c:\Users\57321\Downloads\kumon-main\kumon-main\backend
+
+
+PASO 3: CREAR ENTORNO VIRTUAL PYTHON (si no existe)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # Crear entorno virtual en la carpeta backend
+  python -m venv venv
+
+  # Activar el entorno (Windows PowerShell)
+  .\venv\Scripts\Activate.ps1
+
+  # Si sale error de permisos, ejecuta primero:
+  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+  # Luego intenta de nuevo:
+  .\venv\Scripts\Activate.ps1
+
+  # Debería aparecer (venv) al inicio de la línea en la terminal
+
+
+PASO 4: INSTALAR DEPENDENCIAS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # Dentro del venv activado, instalar requirements.txt
+  pip install -r requirements.txt
+
+  # Esto puede tardar 5-10 minutos (opencv, easyocr, librosa, etc son pesados)
+
+
+PASO 5: EJECUTAR MIGRACIONES ALEMBIC (genera las tablas en la BD)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # Verificar estado de migraciones (lista las migraciones existentes)
+  alembic current
+
+  # Aplicar TODAS las migraciones al head
+  alembic upgrade head
+
+  # Verificar que se crearon las tablas
+  alembic current
+
+  # Deberías ver como salida: "828a5c39ed8b" (la última migración)
+
+
+PASO 6: VERIFICAR QUE LA BD SE CREÓ CORRECTAMENTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # En otra terminal PowerShell, conectar a PostgreSQL
+  psql -U postgres -d kumon_db
+
+  # Listar todos los schemas
+  \dn
+
+  # Deberías ver: admin, processing, audit, public, information_schema
+
+  # Listar todas las tablas en schema processing
+  \dt processing.*
+
+  # Listar todas las tablas en schema admin
+  \dt admin.*
+
+  # Salir
+  \q
+
+
+PASO 7: ARRANCAR EL BACKEND
+━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # En la terminal donde activaste venv, desde backend/
+  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+  # Output esperado:
+  # Uvicorn running on http://0.0.0.0:8000
+  # Application startup complete
+
+
+PASO 8: VERIFICAR QUE EL BACKEND RESPONDE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # En otra terminal (sin cerrar la del backend):
+  curl http://localhost:8000/health
+
+  # Output esperado:
+  # {"status":"ok","version":"0.1.0"}
+
+  # Acceder a Swagger UI (documentación interactiva)
+  # http://localhost:8000/docs
+
+
+PASO 9: VERIFICAR LOS ENDPOINTS DEL DASHBOARD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # Probar cada endpoint desde el navegador o curl
+
+  # 1. Stats generales
+  curl http://localhost:8000/api/v1/dashboard/stats
+
+  # 2. Lista de prospectos (página 1, 10 items por página)
+  curl "http://localhost:8000/api/v1/dashboard/prospectos?page=1&page_size=10"
+
+  # 3. Últimos 10 jobs
+  curl http://localhost:8000/api/v1/dashboard/jobs/recientes
+
+  # 4. Health check del dashboard
+  curl http://localhost:8000/api/v1/dashboard/health
+
+  # Todos deberían retornar JSON válido
+
+
+PASO 10: ABRIR EL FRONTEND CON LIVE SERVER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # Opción A: VS Code Live Server Extension
+  # 1. En VS Code, abre frontend/edupanel_FINAL.html
+  # 2. Click derecho → "Open with Live Server"
+  # 3. Se abrirá http://127.0.0.1:5500/edupanel_FINAL.html
+
+  # Opción B: Desde línea de comando
+  # (Si tienes Python 3.7+)
+  python -m http.server 5500 --directory c:\Users\57321\Downloads\kumon-main\kumon-main\frontend
+
+  # Luego abre en navegador:
+  # http://127.0.0.1:5500/edupanel_FINAL.html
+
+
+PASO 11: VERIFICAR QUE EL FRONTEND SE CONECTA AL BACKEND
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  # El panel debería:
+  # 1. Mostrar la pantalla de login ✓
+  # 2. El indicador de API en la esquina superior debe estar VERDE ✓
+  # 3. Los KPIs (estudiantes, profesores, clases, boletines) deben mostrar números REALES ✓
+  # 4. Los gráficos (semáforo y materias) deben actualizar automáticamente ✓
+  # 5. La tabla de diagnósticos debe mostrar datos reales ✓
+
+
+════════════════════════════════════════════════════════════════════════════════
+  FLUJO DE LOGIN (DEMO)
+════════════════════════════════════════════════════════════════════════════════
+
+  Rol: Administrador
+  Email: admin@kumon.com
+  Contraseña: admin123
+
+  Rol: Profesor 1
+  Email: andrea@kumon.com
+  Contraseña: prof123
+
+  Rol: Profesor 2
+  Email: pablo@kumon.com
+  Contraseña: prof123
+
+
+════════════════════════════════════════════════════════════════════════════════
+  ESTRUCTURA DE ARCHIVOS FINAL
+════════════════════════════════════════════════════════════════════════════════
+
+  kumon-main/
+  ├── backend/
+  │   ├── .env  ✅ ACTUALIZADO
+  │   ├── app/
+  │   │   ├── main.py  ✅ ACTUALIZADO (router dashboard)
+  │   │   ├── routes/
+  │   │   │   ├── dashboard.py  ✅ NUEVO
+  │   │   │   ├── upload.py
+  │   │   │   ├── jobs.py
+  │   │   │   ├── results.py
+  │   │   │   └── cuestionario.py
+  │   │   └── schemas/
+  │   │       ├── dashboard.py  ✅ NUEVO
+  │   │       ├── job.py
+  │   │       ├── result.py
+  │   │       └── upload.py
+  │   ├── database/
+  │   │   └── models.py  (sin cambios, ya está completo)
+  │   ├── config/
+  │   │   ├── settings.py
+  │   │   └── database.py
+  │   ├── alembic/
+  │   │   ├── versions/
+  │   │   │   ├── 828a5c39ed8b_initial_schema.py
+  │   │   │   └── a1b2c3d4e5f6_add_missing_obs_columns.py
+  │   │   └── env.py
+  │   └── requirements.txt
+  │
+  └── frontend/
+      ├── edupanel_FINAL.html  ✅ ACTUALIZADO (conectado a backend)
+      ├── index.html
+      ├── css/
+      └── js/
+          ├── app.js
+          ├── api.js
+          ├── config.js
+          └── ...
+
+
+════════════════════════════════════════════════════════════════════════════════
+  TROUBLESHOOTING
+════════════════════════════════════════════════════════════════════════════════
+
+  ❌ Error: "module 'database.models' has no attribute 'X'"
+     → Falta importar el modelo en alembic/env.py
+     → Solución: Verificar que está importado en env.py
+
+  ❌ Error: "database kumon_db does not exist"
+     → Base de datos no creada
+     → Solución: CREATE DATABASE kumon_db; en psql
+
+  ❌ Error: "connection refused" al conectar a PostgreSQL
+     → PostgreSQL no está corriendo
+     → Solución: Iniciar servicio PostgreSQL
+
+  ❌ Error: "ModuleNotFoundError: No module named 'fastapi'"
+     → Dependencias no instaladas
+     → Solución: pip install -r requirements.txt
+
+  ❌ Error: "CORS error" en el navegador
+     → Frontend no puede conectar al backend
+     → Solución: Verificar que API_BASE en edupanel_FINAL.html es correcto
+
+  ❌ El panel muestra datos vacíos
+     → No hay datos en la BD o endpoint no responde
+     → Solución: Verificar curl http://localhost:8000/api/v1/dashboard/stats
+
+
+════════════════════════════════════════════════════════════════════════════════
+  NOTAS IMPORTANTES
+════════════════════════════════════════════════════════════════════════════════
+
+  • El panel se autoactualiza cada 30 segundos
+  • Los datos mostrados son REALES de PostgreSQL
+  • Para cambiar el servidor backend, edita API_BASE en edupanel_FINAL.html
+  • Las migraciones son idempotentes (seguro correr alembic upgrade head dos veces)
+  • El sistema usa tres schemas: admin, processing, audit
+  • Los endpoints retornan JSON con tipos Pydantic validados
+
+════════════════════════════════════════════════════════════════════════════════
