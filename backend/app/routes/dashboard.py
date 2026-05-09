@@ -1,14 +1,13 @@
 """
 app/routes/dashboard.py
-══════════════════════════════════════════════════════════════════
+
 Endpoints para alimentar el panel administrativo (edupanel_FINAL.html).
 
 Expone:
-  - GET /api/v1/dashboard/stats       → KPIs generales
-  - GET /api/v1/dashboard/prospectos  → Lista paginada de prospectos
+  - GET /api/v1/dashboard/stats        → KPIs generales
+  - GET /api/v1/dashboard/prospectos   → Lista paginada de prospectos
   - GET /api/v1/dashboard/jobs/recientes → Últimos 10 jobs
-  - GET /api/v1/dashboard/health      → Verificar conexión BD
-══════════════════════════════════════════════════════════════════
+  - GET /api/v1/dashboard/health       → Verificar conexión BD
 """
 
 from datetime import datetime, timedelta
@@ -49,68 +48,99 @@ router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 async def get_dashboard_stats(db: Session = Depends(get_db)) -> DashboardStatsResponse:
     """
     Retorna los KPIs principales del dashboard:
-      - Totales: estudiantes, profesores, clases hoy, boletines
-      - Distribución por semáforo (verde/amarillo/rojo)
-      - Distribución por materia (MAT/ESP/ING)
-      - Estado del pipeline (jobs en cola, procesando, completados hoy)
+    - Totales: estudiantes, profesores, clases hoy, boletines
+    - Distribución por semáforo (verde/amarillo/rojo)
+    - Distribución por materia (MAT/ESP/ING)
+    - Estado del pipeline (jobs en cola, procesando, completados hoy)
     """
-
-    # ── Totales generales ─────────────────────────────────────────
+    # ── Totales generales ────────────────────────────────────────
     total_estudiantes = db.query(func.count(Student.id_estudiante)).scalar() or 0
-    total_profesores = db.query(func.count(Role.id_rol)).filter(
-        Role.nombre_rol == "profesor"
-    ).scalar() or 0
 
-    # Aproximado: contar jobs completados hoy como "clases"
+    total_profesores = (
+        db.query(func.count(Role.id_rol))
+        .filter(Role.nombre_rol == "profesor")
+        .scalar()
+        or 0
+    )
+
     today = datetime.now().date()
-    clases_hoy = db.query(func.count(ProcessingJob.id_job)).filter(
-        ProcessingJob.status == "done",
-        func.DATE(ProcessingJob.completed_at) == today,
-    ).scalar() or 0
+    clases_hoy = (
+        db.query(func.count(ProcessingJob.id_job))
+        .filter(
+            ProcessingJob.status == "done",
+            func.DATE(ProcessingJob.completed_at) == today,
+        )
+        .scalar()
+        or 0
+    )
 
-    # Boletines generados
-    boletines_generados = db.query(func.count(Bulletin.id_boletin)).scalar() or 0
+    boletines_generados = db.query(func.count(Bulletin.id_bulletin)).scalar() or 0
 
-    # ── Semáforo (desde TestResult) ────────────────────────────────
-    semaforo_verde = db.query(func.count(TestResult.id_result)).filter(
-        TestResult.semaforo == "verde"
-    ).scalar() or 0
+    # ── Semáforo (desde TestResult) ──────────────────────────────
+    semaforo_verde = (
+        db.query(func.count(TestResult.id_result))
+        .filter(TestResult.semaforo == "verde")
+        .scalar()
+        or 0
+    )
+    semaforo_amarillo = (
+        db.query(func.count(TestResult.id_result))
+        .filter(TestResult.semaforo == "amarillo")
+        .scalar()
+        or 0
+    )
+    semaforo_rojo = (
+        db.query(func.count(TestResult.id_result))
+        .filter(TestResult.semaforo == "rojo")
+        .scalar()
+        or 0
+    )
 
-    semaforo_amarillo = db.query(func.count(TestResult.id_result)).filter(
-        TestResult.semaforo == "amarillo"
-    ).scalar() or 0
+    # ── Materias (por template subject) ─────────────────────────
+    mat_count = (
+        db.query(func.count(ProcessingJob.id_job))
+        .join(TestTemplate, ProcessingJob.id_template == TestTemplate.id_template)
+        .filter(TestTemplate.subject == "matematicas")
+        .scalar()
+        or 0
+    )
+    esp_count = (
+        db.query(func.count(ProcessingJob.id_job))
+        .join(TestTemplate, ProcessingJob.id_template == TestTemplate.id_template)
+        .filter(TestTemplate.subject == "espanol")
+        .scalar()
+        or 0
+    )
+    ing_count = (
+        db.query(func.count(ProcessingJob.id_job))
+        .join(TestTemplate, ProcessingJob.id_template == TestTemplate.id_template)
+        .filter(TestTemplate.subject == "ingles")
+        .scalar()
+        or 0
+    )
 
-    semaforo_rojo = db.query(func.count(TestResult.id_result)).filter(
-        TestResult.semaforo == "rojo"
-    ).scalar() or 0
-
-    # ── Materias (cuento por template subject) ─────────────────────
-    # Contamos jobs por subject del template que usó
-    mat_count = db.query(func.count(ProcessingJob.id_job)).join(
-        TestTemplate, ProcessingJob.id_template == TestTemplate.id_template
-    ).filter(TestTemplate.subject == "matematicas").scalar() or 0
-
-    esp_count = db.query(func.count(ProcessingJob.id_job)).join(
-        TestTemplate, ProcessingJob.id_template == TestTemplate.id_template
-    ).filter(TestTemplate.subject == "espanol").scalar() or 0
-
-    ing_count = db.query(func.count(ProcessingJob.id_job)).join(
-        TestTemplate, ProcessingJob.id_template == TestTemplate.id_template
-    ).filter(TestTemplate.subject == "ingles").scalar() or 0
-
-    # ── Estado del pipeline ────────────────────────────────────────
-    jobs_en_cola = db.query(func.count(ProcessingJob.id_job)).filter(
-        ProcessingJob.status == "queued"
-    ).scalar() or 0
-
-    jobs_procesando = db.query(func.count(ProcessingJob.id_job)).filter(
-        ProcessingJob.status == "processing"
-    ).scalar() or 0
-
-    jobs_completados_hoy = db.query(func.count(ProcessingJob.id_job)).filter(
-        ProcessingJob.status == "done",
-        func.DATE(ProcessingJob.completed_at) == today,
-    ).scalar() or 0
+    # ── Estado del pipeline ──────────────────────────────────────
+    jobs_en_cola = (
+        db.query(func.count(ProcessingJob.id_job))
+        .filter(ProcessingJob.status == "queued")
+        .scalar()
+        or 0
+    )
+    jobs_procesando = (
+        db.query(func.count(ProcessingJob.id_job))
+        .filter(ProcessingJob.status == "processing")
+        .scalar()
+        or 0
+    )
+    jobs_completados_hoy = (
+        db.query(func.count(ProcessingJob.id_job))
+        .filter(
+            ProcessingJob.status == "done",
+            func.DATE(ProcessingJob.completed_at) == today,
+        )
+        .scalar()
+        or 0
+    )
 
     return DashboardStatsResponse(
         total_estudiantes=total_estudiantes,
@@ -136,7 +166,7 @@ async def get_dashboard_stats(db: Session = Depends(get_db)) -> DashboardStatsRe
 @router.get(
     "/prospectos",
     response_model=ProspectosPageResponse,
-    summary="Lista paginada de prospectos"
+    summary="Lista paginada de prospectos",
 )
 async def get_prospectos(
     page: int = Query(1, ge=1, description="Página (1-indexed)"),
@@ -146,40 +176,53 @@ async def get_prospectos(
     """
     Retorna lista paginada de prospectos con su último test y semáforo.
     """
-
-    # Total de prospectos
     total = db.query(func.count(Prospecto.id_prospecto)).scalar() or 0
-
-    # Query con offset/limit
     offset = (page - 1) * page_size
     prospectos = db.query(Prospecto).offset(offset).limit(page_size).all()
 
     items = []
     for prospecto in prospectos:
-        # Buscar último test result de este prospecto
-        last_result = db.query(TestResult).filter(
-            TestResult.id_prospecto == prospecto.id_prospecto
-        ).order_by(TestResult.created_at.desc()).first()
+        last_result = (
+            db.query(TestResult)
+            .filter(TestResult.id_prospecto == prospecto.id_prospecto)
+            .order_by(TestResult.created_at.desc())
+            .first()
+        )
 
-        # Buscar último job y boletín
-        last_job = db.query(ProcessingJob).filter(
-            ProcessingJob.id_prospecto == prospecto.id_prospecto
-        ).order_by(ProcessingJob.created_at.desc()).first()
+        last_job = (
+            db.query(ProcessingJob)
+            .filter(ProcessingJob.id_prospecto == prospecto.id_prospecto)
+            .order_by(ProcessingJob.created_at.desc())
+            .first()
+        )
 
-        has_boletin = (
-            db.query(func.count(Bulletin.id_boletin)).filter(
-                Bulletin.id_result == last_result.id_result if last_result else None
-            ).scalar() or 0
-        ) > 0 if last_result else False
+        has_boletin = False
+        if last_result:
+            has_boletin = (
+                db.query(func.count(Bulletin.id_bulletin))
+                .filter(Bulletin.id_result == last_result.id_result)
+                .scalar()
+                or 0
+            ) > 0
 
         item = ProspectoItemResponse(
             id_prospecto=prospecto.id_prospecto,
             nombre_completo=prospecto.nombre_completo,
             grado_escolar=prospecto.grado_escolar,
             nombre_escuela=prospecto.nombre_escuela,
-            fecha_prueba=prospecto.fecha_prueba.isoformat() if prospecto.fecha_prueba else None,
-            test_code=last_result.template.code if last_result and last_result.template else None,
-            subject=last_result.template.subject if last_result and last_result.template else None,
+            fecha_prueba=(
+                prospecto.fecha_prueba.isoformat() if prospecto.fecha_prueba else None
+            ),
+            test_code=(
+                last_result.template.code
+                if last_result and last_result.template
+                else None
+            ),
+            subject=(
+                last_result.template.subject
+                if last_result and last_result.template
+                else None
+            ),
             semaforo=last_result.semaforo if last_result else None,
             percentage=last_result.percentage if last_result else None,
             fecha_resultado=last_result.created_at if last_result else None,
@@ -203,23 +246,23 @@ async def get_prospectos(
 @router.get(
     "/jobs/recientes",
     response_model=JobsRecientesResponse,
-    summary="Últimos 10 jobs del sistema"
+    summary="Últimos 10 jobs del sistema",
 )
 async def get_jobs_recientes(db: Session = Depends(get_db)) -> JobsRecientesResponse:
     """
     Retorna los últimos 10 jobs de procesamiento con su estado y resultado.
     """
-
     total_jobs = db.query(func.count(ProcessingJob.id_job)).scalar() or 0
 
-    # Últimos 10 jobs ordenados por fecha descendente
-    jobs = db.query(ProcessingJob).order_by(
-        ProcessingJob.created_at.desc()
-    ).limit(10).all()
+    jobs = (
+        db.query(ProcessingJob)
+        .order_by(ProcessingJob.created_at.desc())
+        .limit(10)
+        .all()
+    )
 
     items = []
     for job in jobs:
-        # Obtener nombre del sujeto
         if job.is_prospecto and job.prospecto:
             nombre_sujeto = job.prospecto.nombre_completo
             tipo_sujeto = "prospecto"
@@ -230,7 +273,6 @@ async def get_jobs_recientes(db: Session = Depends(get_db)) -> JobsRecientesResp
             nombre_sujeto = "Desconocido"
             tipo_sujeto = "desconocido"
 
-        # Obtener resultado si existe
         result = job.test_result
         test_code = result.template.code if result and result.template else None
         subject = result.template.subject if result and result.template else None
@@ -266,14 +308,13 @@ async def get_jobs_recientes(db: Session = Depends(get_db)) -> JobsRecientesResp
 @router.get(
     "/health",
     response_model=DashboardHealthResponse,
-    summary="Health check del dashboard"
+    summary="Health check del dashboard",
 )
 async def get_dashboard_health(db: Session = Depends(get_db)) -> DashboardHealthResponse:
     """
     Verifica que el backend y la BD estén operacionales.
     """
     try:
-        # Intentar ejecutar una query simple
         db.query(Prospecto).limit(1).all()
         return DashboardHealthResponse(
             status="ok",
