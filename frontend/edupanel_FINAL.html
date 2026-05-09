@@ -1463,6 +1463,219 @@ async         function renderNotas(container) {
                 </div>
             `;
         }
+                // ===== EDITAR / ELIMINAR ESTUDIANTES =====
+async function editarEstudiante(id) {
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/estudiantes/${id}`);
+    const e = await r.json();
+    document.getElementById('editEstId').value = e.id_estudiante;
+    document.getElementById('editEstNombre').value = e.nombre;
+    document.getElementById('editEstApellido').value = e.apellido || '';
+    document.getElementById('editEstEmail').value = e.email || '';
+    document.getElementById('editEstTelefono').value = e.telefono || '';
+    document.getElementById('editEstNivel').value = e.nivel || '';
+    abrirModal('modalEditEstudiante');
+  } catch(err) { mostrarToast('Error al cargar estudiante','error'); }
+}
+async function guardarEditEstudiante(e) {
+  e.preventDefault();
+  const id = document.getElementById('editEstId').value;
+  const data = {
+    nombre: document.getElementById('editEstNombre').value,
+    apellido: document.getElementById('editEstApellido').value,
+    email: document.getElementById('editEstEmail').value,
+    telefono: document.getElementById('editEstTelefono').value,
+    nivel: document.getElementById('editEstNivel').value
+  };
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/estudiantes/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+    if(!r.ok) throw new Error();
+    mostrarToast('Estudiante actualizado correctamente','success');
+    cerrarModal('modalEditEstudiante');
+    cargarEstudiantes();
+  } catch(err) { mostrarToast('Error al actualizar estudiante','error'); }
+}
+async function eliminarEstudiante(id, nombre) {
+  if(!confirm(`¿Eliminar a ${nombre}? Esta accion no se puede deshacer.`)) return;
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/estudiantes/${id}`, { method:'DELETE' });
+    if(!r.ok) throw new Error();
+    mostrarToast('Estudiante eliminado','success');
+    cargarEstudiantes();
+  } catch(err) { mostrarToast('Error al eliminar estudiante','error'); }
+}
+// ===== EDITAR / ELIMINAR PROFESORES =====
+async function editarProfesor(id) {
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/profesores/${id}`);
+    const p = await r.json();
+    document.getElementById('editProfId').value = p.id_profesor;
+    document.getElementById('editProfNombre').value = p.nombre;
+    document.getElementById('editProfApellido').value = p.apellido || '';
+    document.getElementById('editProfEmail').value = p.email || '';
+    document.getElementById('editProfTelefono').value = p.telefono || '';
+    document.getElementById('editProfEspecialidad').value = p.especialidad || '';
+    abrirModal('modalEditProfesor');
+  } catch(err) { mostrarToast('Error al cargar profesor','error'); }
+}
+async function guardarEditProfesor(e) {
+  e.preventDefault();
+  const id = document.getElementById('editProfId').value;
+  const data = {
+    nombre: document.getElementById('editProfNombre').value,
+    apellido: document.getElementById('editProfApellido').value,
+    email: document.getElementById('editProfEmail').value,
+    telefono: document.getElementById('editProfTelefono').value,
+    especialidad: document.getElementById('editProfEspecialidad').value
+  };
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/profesores/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+    if(!r.ok) throw new Error();
+    mostrarToast('Profesor actualizado correctamente','success');
+    cerrarModal('modalEditProfesor');
+    cargarProfesores();
+  } catch(err) { mostrarToast('Error al actualizar profesor','error'); }
+}
+async function eliminarProfesor(id, nombre) {
+  if(!confirm(`¿Eliminar a ${nombre}? Esta accion no se puede deshacer.`)) return;
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/profesores/${id}`, { method:'DELETE' });
+    if(!r.ok) throw new Error();
+    mostrarToast('Profesor eliminado','success');
+    cargarProfesores();
+  } catch(err) { mostrarToast('Error al eliminar profesor','error'); }
+}
+// ===== HORARIOS =====
+let horarioData = [];
+async function cargarHorarios() {
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/horarios`);
+    const data = await r.json();
+    horarioData = data.items || data || [];
+    renderHorarioTabla();
+  } catch(err) { console.error('Error cargando horarios:', err); }
+}
+function renderHorarioTabla() {
+  const dias = ['Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
+  const franjas = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'];
+  const grid = document.getElementById('horarioGrid');
+  if(!grid) return;
+  let html = '<div class="horario-header"></div>';
+  dias.forEach(d => { html += `<div class="horario-header">${d}</div>`; });
+  franjas.forEach(franja => {
+    html += `<div class="horario-time">${franja}</div>`;
+    dias.forEach(dia => {
+      const clases = horarioData.filter(h => h.dia === dia && h.hora_inicio === franja);
+      if(clases.length > 0) {
+        const c = clases[0];
+        html += `<div class="horario-cell occupied">
+          <div class="clase-card" onclick="verDetalleHorario('${c.id_horario}')">
+            <div class="est-nombre">${c.nombre_estudiante || 'Estudiante'}</div>
+            <div class="prof-nombre">${c.nombre_profesor || 'Profesor'}</div>
+            <div class="tag-horario">${c.materia || ''} <span class="del-h" onclick="event.stopPropagation();eliminarHorario('${c.id_horario}')">x</span></div>
+          </div>
+        </div>`;
+      } else {
+        html += `<div class="horario-cell" onclick="nuevaClaseEnSlot('${dia}','${franja}')"><div class="add-slot">+</div></div>`;
+      }
+    });
+  });
+  grid.innerHTML = html;
+}
+async function guardarHorario(e) {
+  e.preventDefault();
+  const data = {
+    id_estudiante: document.getElementById('horarioEstudiante').value,
+    id_profesor: document.getElementById('horarioProfesor').value,
+    dia: document.getElementById('horarioDia').value,
+    hora_inicio: document.getElementById('horarioHoraInicio').value,
+    hora_fin: document.getElementById('horarioHoraFin').value,
+    materia: document.getElementById('horarioMateria').value
+  };
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/horarios`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+    if(!r.ok) throw new Error(await r.text());
+    mostrarToast('Clase programada correctamente','success');
+    cerrarModal('modalHorario');
+    cargarHorarios();
+  } catch(err) { mostrarToast('Error al guardar horario: '+err.message,'error'); }
+}
+async function eliminarHorario(id) {
+  if(!confirm('¿Eliminar esta clase del horario?')) return;
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/horarios/${id}`, { method:'DELETE' });
+    if(!r.ok) throw new Error();
+    mostrarToast('Clase eliminada','success');
+    cargarHorarios();
+  } catch(err) { mostrarToast('Error al eliminar clase','error'); }
+}
+function nuevaClaseEnSlot(dia, hora) {
+  document.getElementById('horarioDia').value = dia;
+  document.getElementById('horarioHoraInicio').value = hora;
+  const [h,m] = hora.split(':');
+  document.getElementById('horarioHoraFin').value = (parseInt(h)+1).toString().padStart(2,'0')+':'+m;
+  abrirModal('modalHorario');
+}
+function verDetalleHorario(id) {
+  const h = horarioData.find(x => x.id_horario === id);
+  if(!h) return;
+  alert(`Clase:\nEstudiante: ${h.nombre_estudiante}\nProfesor: ${h.nombre_profesor}\nDia: ${h.dia}\nHorario: ${h.hora_inicio} - ${h.hora_fin}\nMateria: ${h.materia}`);
+}
     </script>
+<!-- MODAL EDITAR ESTUDIANTE -->
+<div class="modal-overlay" id="modalEditEstudiante">
+  <div class="modal-content">
+    <div class="modal-header"><h3>Editar Estudiante</h3><button class="close-btn" onclick="cerrarModal('modalEditEstudiante')">x</button></div>
+    <form id="formEditEstudiante" onsubmit="guardarEditEstudiante(event)">
+      <input type="hidden" id="editEstId">
+      <div class="form-row">
+        <div class="form-group"><label>Nombre *</label><input type="text" id="editEstNombre" required></div>
+        <div class="form-group"><label>Apellido *</label><input type="text" id="editEstApellido" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="email" id="editEstEmail"></div>
+        <div class="form-group"><label>Telefono</label><input type="text" id="editEstTelefono"></div>
+      </div>
+      <div class="form-group"><label>Nivel</label><select id="editEstNivel"><option value="">Sin nivel</option><option value="1">Nivel 1</option><option value="2">Nivel 2</option><option value="3">Nivel 3</option><option value="4">Nivel 4</option><option value="5">Nivel 5</option></select></div>
+      <div class="form-actions"><button type="button" class="btn" onclick="cerrarModal('modalEditEstudiante')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar Cambios</button></div>
+    </form>
+  </div>
+</div>
+<!-- MODAL EDITAR PROFESOR -->
+<div class="modal-overlay" id="modalEditProfesor">
+  <div class="modal-content">
+    <div class="modal-header"><h3>Editar Profesor</h3><button class="close-btn" onclick="cerrarModal('modalEditProfesor')">x</button></div>
+    <form id="formEditProfesor" onsubmit="guardarEditProfesor(event)">
+      <input type="hidden" id="editProfId">
+      <div class="form-row">
+        <div class="form-group"><label>Nombre *</label><input type="text" id="editProfNombre" required></div>
+        <div class="form-group"><label>Apellido *</label><input type="text" id="editProfApellido" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input type="email" id="editProfEmail"></div>
+        <div class="form-group"><label>Telefono</label><input type="text" id="editProfTelefono"></div>
+      </div>
+      <div class="form-group"><label>Especialidad</label><input type="text" id="editProfEspecialidad"></div>
+      <div class="form-actions"><button type="button" class="btn" onclick="cerrarModal('modalEditProfesor')">Cancelar</button><button type="submit" class="btn btn-primary">Guardar Cambios</button></div>
+    </form>
+  </div>
+</div>
+<!-- MODAL CREAR HORARIO -->
+<div class="modal-overlay" id="modalHorario">
+  <div class="modal-content">
+    <div class="modal-header"><h3>Programar Clase</h3><button class="close-btn" onclick="cerrarModal('modalHorario')">x</button></div>
+    <form id="formHorario" onsubmit="guardarHorario(event)">
+      <div class="form-group"><label>Estudiante *</label><select id="horarioEstudiante" required><option value="">Seleccionar...</option></select></div>
+      <div class="form-group"><label>Profesor *</label><select id="horarioProfesor" required><option value="">Seleccionar...</option></select></div>
+      <div class="form-group"><label>Dia *</label><select id="horarioDia" required><option value="Lunes">Lunes</option><option value="Martes">Martes</option><option value="Miercoles">Miercoles</option><option value="Jueves">Jueves</option><option value="Viernes">Viernes</option><option value="Sabado">Sabado</option></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>Hora Inicio *</label><input type="time" id="horarioHoraInicio" required></div>
+        <div class="form-group"><label>Hora Fin *</label><input type="time" id="horarioHoraFin" required></div>
+      </div>
+      <div class="form-group"><label>Materia</label><select id="horarioMateria"><option value="Mat">Matematicas</option><option value="Esp">Espanol</option><option value="Ing">Ingles</option></select></div>
+      <div class="form-actions"><button type="button" class="btn" onclick="cerrarModal('modalHorario')">Cancelar</button><button type="submit" class="btn btn-primary">Programar Clase</button></div>
+    </form>
+  </div>
+</div>
 </body>
 </html>
