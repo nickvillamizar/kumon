@@ -572,6 +572,51 @@
                     </form>
                 </div>
             </div>
+                    <!-- Modal: Registrar Nota -->
+        <div id="modalNota" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Registrar Nota de Clase</h2>
+                    <button class="close-btn" onclick="cerrarModal('modalNota')"><i data-lucide="x"></i></button>
+                </div>
+                <form id="formNota" onsubmit="guardarNota(event)">
+                    <div class="form-group">
+                        <label>Estudiante</label>
+                        <select id="notaEstudiante" required>
+                            <option value="">Seleccionar estudiante...</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Materia</label>
+                            <select id="notaMateria" required>
+                                <option value="Mat">Matematicas</option>
+                                <option value="Esp">Espanol</option>
+                                <option value="Ing">Ingles</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Avance (1-5 estrellas)</label>
+                            <select id="notaEstrellas" required>
+                                <option value="1">1 Estrella</option>
+                                <option value="2">2 Estrellas</option>
+                                <option value="3" selected>3 Estrellas</option>
+                                <option value="4">4 Estrellas</option>
+                                <option value="5">5 Estrellas</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Observacion</label>
+                        <textarea id="notaObservacion" rows="3" required style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;resize:vertical;"></textarea>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:10px;">
+                        <button type="button" class="btn" onclick="cerrarModal('modalNota')">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Nota</button>
+                    </div>
+                </form>
+            </div>
+        </div>
             <!-- END MODALS -->
             <main id="mainContent">
                 <!-- Vistas inyectadas por JS -->
@@ -589,50 +634,120 @@
         function abrirModal(id) { document.getElementById(id).classList.add('active'); }
         function cerrarModal(id) { document.getElementById(id).classList.remove('active'); }
 
-        function guardarEstudiante(e) {
+async function guardarEstudiante(e) {
             e.preventDefault();
             const materiasOpts = document.getElementById('estMaterias').selectedOptions;
             const materias = Array.from(materiasOpts).map(opt => opt.value);
-
-            const nuevo = {
-                id: DEMO_DATA.estudiantes.length + 1,
-                nombre: document.getElementById('estNombres').value + ' ' + document.getElementById('estApellidos').value,
+            const payload = {
+                nombres: document.getElementById('estNombres').value,
+                apellidos: document.getElementById('estApellidos').value,
+                documento: document.getElementById('estDoc').value,
+                email: document.getElementById('estEmail').value,
                 materias: materias,
-                profesor: document.getElementById('estProfesor').value,
-                horario: [] // Por defecto sin horario hasta asignarlo
+                profesor_nombre: document.getElementById('estProfesor').value
             };
-
-            DEMO_DATA.estudiantes.unshift(nuevo); // Agregar al inicio
-            cerrarModal('modalEstudiante');
-            document.getElementById('formEstudiante').reset();
-            renderEstudiantes(document.getElementById('mainContent')); // Refrescar vista
-            alert('Estudiante creado exitosamente');
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/estudiantes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    cerrarModal('modalEstudiante');
+                    document.getElementById('formEstudiante').reset();
+                    renderEstudiantes(document.getElementById('mainContent'));
+                    alert('Estudiante creado exitosamente');
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + (err.detail || 'No se pudo crear el estudiante'));
+                }
+            } catch(ex) {
+                console.error('Error guardando estudiante:', ex);
+                alert('Error de conexion con el servidor');
+            }
         }
 
-        function guardarProfesor(e) {
+async function guardarProfesor(e) {
             e.preventDefault();
             const materiasOpts = document.getElementById('profMaterias').selectedOptions;
             const materias = Array.from(materiasOpts).map(opt => opt.value);
-
-            const nuevo = {
-                id: DEMO_DATA.profesores.length + 1,
+            const payload = {
                 nombre: document.getElementById('profNombre').value,
                 email: document.getElementById('profEmail').value,
-                pass: document.getElementById('profPass').value,
-                materias: materias,
-                estudiantes: 0
+                password: document.getElementById('profPass').value,
+                materias: materias
             };
-
-            DEMO_DATA.profesores.unshift(nuevo);
-            cerrarModal('modalProfesor');
-            document.getElementById('formProfesor').reset();
-            renderProfesores(document.getElementById('mainContent'));
-            alert('Profesor creado exitosamente');
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/profesores`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    cerrarModal('modalProfesor');
+                    document.getElementById('formProfesor').reset();
+                    renderProfesores(document.getElementById('mainContent'));
+                    alert('Profesor creado exitosamente');
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + (err.detail || 'No se pudo crear el profesor'));
+                }
+            } catch(ex) {
+                console.error('Error guardando profesor:', ex);
+                alert('Error de conexion con el servidor');
+            }
         }
 
         // --- FIN LOGIC MODALS ---
     
         // -------------------------
+        
+        async function guardarNota(e) {
+            e.preventDefault();
+            const id_estudiante = document.getElementById('notaEstudiante').value;
+            const materia = document.getElementById('notaMateria').value;
+            const estrellas = parseInt(document.getElementById('notaEstrellas').value);
+            const observacion = document.getElementById('notaObservacion').value;
+            if (!id_estudiante) { alert('Selecciona un estudiante'); return; }
+            const payload = { id_estudiante: parseInt(id_estudiante), materia, estrellas, observacion };
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/notas/por-estudiante`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    cerrarModal('modalNota');
+                    document.getElementById('formNota').reset();
+                    renderNotas(document.getElementById('mainContent'));
+                    alert('Nota registrada exitosamente');
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + (err.detail || 'No se pudo registrar la nota'));
+                }
+            } catch(ex) {
+                console.error('Error guardando nota:', ex);
+                alert('Error de conexion con el servidor');
+            }
+        }
+
+        async function cargarEstudiantesEnModal(selectId) {
+            const sel = document.getElementById(selectId);
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/estudiantes`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const opts = data.map(e => `<option value="${e.id_estudiante}">${e.nombres} ${e.apellidos}</option>`).join('');
+                    sel.innerHTML = '<option value="">Seleccionar estudiante...</option>' + opts;
+                }
+            } catch(ex) { console.error('Error cargando estudiantes para modal:', ex); }
+        }
+
+        const _origAbrirModal = abrirModal;
+        abrirModal = function(id) {
+            _origAbrirModal(id);
+            if (id === 'modalNota') cargarEstudiantesEnModal('notaEstudiante');
+        };
         // ESTADO Y DATOS DEMO
         // -------------------------
         const API_BASE = 'http://localhost:8000';  // ← CONFIGURABLE AQUÍ
@@ -898,7 +1013,7 @@
         // -------------------------
         // AUTHENTICATION
         // -------------------------
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
             const pass = document.getElementById('loginPassword').value;
@@ -906,18 +1021,26 @@
 
             if (role === 'admin' && email === 'admin@kumon.com' && pass === 'admin123') {
                 login({ name: 'Administrador', email, role: 'admin' });
-            } else if (role === 'profesor') {
-                const prof = DEMO_DATA.profesores.find(p => p.email === email && p.pass === pass);
-                if (prof) {
-                    login({ name: prof.nombre, email, role: 'profesor' });
-                } else {
-                    alert('Credenciales de profesor incorrectas');
+                } else if (role === 'profesor') {
+                // Verificar credenciales via API
+                try {
+                    const res = await fetch(`${API_BASE}/api/v1/profesores/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password: pass })
+                    });
+                    if (res.ok) {
+                        const prof = await res.json();
+                        login({ name: prof.nombre, email, role: 'profesor' });
+                    } else {
+                        alert('Credenciales de profesor incorrectas');
+                    }
+                } catch(ex) {
+                    // Fallback to demo data if API not available
+                    const prof = DEMO_DATA.profesores.find(p => p.email === email && p.pass === pass);
+                    if (prof) { login({ name: prof.nombre, email, role: 'profesor' }); }
+                    else { alert('Credenciales de profesor incorrectas'); }
                 }
-            } else {
-                alert('Credenciales incorrectas');
-            }
-        });
-
         function login(user) {
             currentUser = user;
             document.getElementById('loginScreen').classList.add('hidden');
@@ -1073,8 +1196,21 @@
             });
         }
 
-        function renderEstudiantes(container) {
-            let estudiantes = DEMO_DATA.estudiantes;
+        async function renderEstudiantes(container) {
+let estudiantes = [];
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/estudiantes`);
+                if (res.ok) {
+                    const data = await res.json();
+                    estudiantes = data.map(e => ({
+                        nombre: (e.nombres || '') + ' ' + (e.apellidos || ''),
+                        materias: e.materias || [],
+                        profesor: e.profesor_nombre || 'Sin asignar',
+                        horario: e.horario || [],
+                        id: e.id_estudiante
+                    }));
+                }
+            } catch(ex) { console.error('Error cargando estudiantes:', ex); }
             if(currentUser.role === 'profesor') {
                 estudiantes = estudiantes.filter(e => e.profesor === currentUser.name);
             }
@@ -1116,8 +1252,22 @@
             `;
         }
 
-        function renderProfesores(container) {
-            let rows = DEMO_DATA.profesores.map(p => `
+        async function renderProfesores(container) {
+            let profesores = [];
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/profesores`);
+                if (res.ok) {
+                    const data = await res.json();
+                    profesores = data.map(p => ({
+                        id: p.id_profesor,
+                        nombre: p.nombre,
+                        email: p.email,
+                        materias: p.materias || [],
+                        estudiantes: p.total_estudiantes || 0
+                    }));
+                }
+            } catch(ex) { console.error('Error cargando profesores:', ex); }
+            let rows = profesores.map(p => `
                 <tr>
                     <td>
                         <div style="display:flex; align-items:center; gap:10px;">
@@ -1157,16 +1307,23 @@
             `;
         }
 
-        function renderHorario(container) {
-            let estudiantes = DEMO_DATA.estudiantes;
+        async function renderHorario(container) {
+            let estudiantes = [];
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/estudiantes`);
+                if (res.ok) {
+                    const data = await res.json();
+                    estudiantes = data.map(e => ({
+                        nombre: (e.nombres || '') + ' ' + (e.apellidos || ''),
+                        materias: e.materias || [],
+                        profesor: e.profesor_nombre || 'Sin asignar',
+                        horario: e.horario || []
+                    }));
+                }
+            } catch(ex) { console.error('Error cargando horario:', ex); }
             if(currentUser.role === 'profesor') {
                 estudiantes = estudiantes.filter(e => e.profesor === currentUser.name);
             }
-
-            let gridHtml = '';
-
-            // Header Row
-            gridHtml += `<div class="horario-header">Hora</div>`;
             DIAS.forEach(d => { gridHtml += `<div class="horario-header">${d}</div>`; });
 
             // Body Rows
@@ -1203,8 +1360,21 @@
             `;
         }
 
-        function renderNotas(container) {
-            let notas = DEMO_DATA.notas;
+async         function renderNotas(container) {
+                        let notas = [];
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/notas`);
+                if (res.ok) {
+                    const data = await res.json();
+                    notas = (data.items || data).map(n => ({
+                        fecha: n.fecha ? n.fecha.substring(0,10) : '',
+                        notas = (datestudiante: n.estudiante || (n.nombres || '') + ' ' + (n.apellidos || '')a.items || data).map,
+                        materia: n.materia || '',
+                        estrellas: n.estrellas || 0,
+                        observacion: n.observacion || ''
+                    }));
+                }
+            } catch(ex) { console.error('Error cargando notas:', ex); }
 
             let rows = notas.map(n => `
                 <tr>
@@ -1219,7 +1389,7 @@
             container.innerHTML = `
                 <div class="view-header">
                     <h2 class="view-title">Notas de Clase</h2>
-                    <button class="btn btn-primary"><i data-lucide="pen-tool"></i> Registrar Nota</button>
+                    <button class="btn btn-primary" onclick="abrirModal('modalNota')"><i data-lucide="pen-tool"></i> Registrar Nota</button>
                 </div>
                 <div class="table-container">
                     <table>
