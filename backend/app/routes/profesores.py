@@ -216,3 +216,41 @@ async def desactivar_profesor(
     p.activo = False
     db.commit()
     return None
+
+
+# ==============================================================
+# POST /api/v1/profesores/login
+# ==============================================================
+class LoginProfesorBody(BaseModel):
+    email: str
+    password: str
+
+@router.post("/login", summary="Login de profesor")
+def login_profesor(
+    body: LoginProfesorBody,
+    db: Session = Depends(get_db),
+):
+    from passlib.context import CryptContext
+    import hashlib
+    p = db.query(Usuario).filter(
+        Usuario.email == body.email,
+        Usuario.rol == Role.profesor,
+        Usuario.activo == True
+    ).first()
+    if not p:
+        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+    # Intentar verificacion con bcrypt, si falla verificar hash simple
+    try:
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        if not pwd_context.verify(body.password, p.password_hash):
+            raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+    except Exception:
+        # Fallback: comparacion directa (para passwords en texto plano durante desarrollo)
+        if body.password != p.password_hash:
+            raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+    return {
+        "id_usuario": str(p.id_usuario),
+        "nombre": f"{p.primer_nombre} {p.segundo_apellido}",
+        "email": p.email,
+        "rol": "profesor"
+    }
