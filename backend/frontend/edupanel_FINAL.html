@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduPanel - Centro Kumon Ipiales | Runika Labs</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --primary: #00B4D8;
+            --primary-dark: #0077A8;
+            --accent-pink: #E040FB;
+            --accent-orange: #FF6D00;
+            --bg: #0F1117;
+            --surface: #1A1D27;
+            --surface-2: #21253A;
+            --border: rgba(255,255,255,0.08);
+            --text: #F0F2FF;
+            --text-muted: #8B90A7;
+            --mat-color: #4FC3F7;
+            --esp-color: #FF8A65;
+            --ing-color: #81C784;
+            --verde: #4CAF50;
+            --amarillo: #FFC107;
+            --rojo: #F44336;
+            --sidebar-width: 260px;
+            --header-height: 70px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        /* Utilidades */
+        .hidden { display: none !important; }
+        .text-primary { color: var(--primary); }
+        .text-pink { color: var(--accent-pink); }
+        .text-muted { color: var(--text-muted); }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .badge-mat { background-color: rgba(79, 195, 247, 0.15); color: var(--mat-color); }
+        .badge-esp { background-color: rgba(255, 138, 101, 0.15); color: var(--esp-color); }
+        .badge-ing { background-color: rgba(129, 199, 132, 0.15); color: var(--ing-color); }
+
+        .btn {
+            background: var(--surface-2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn:hover { background: var(--border); }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--accent-pink));
+            border: none;
+            color: white;
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* --- Login Screen --- */
+        #loginScreen {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at top left, rgba(0, 180, 216, 0.1), transparent 40%),
+                        radial-gradient(circle at bottom right, rgba(224, 64, 251, 0.1), transparent 40%);
+        }
+        .login-card {
+            background: var(--surface);
+            padding: 40px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        .login-card h1 { margin-bottom: 10px; font-size: 1.5rem; }
+        .login-card p { color: var(--text-muted); margin-bottom: 30px; font-size: 0.9rem; }
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 8px;
+            outline: none;
+            transition: border 0.3s;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: var(--primary); }
+        .login-btn { width: 100%; justify-content: center; margin-top: 10px; }
+        .demo-credentials {
+            margin-top: 20px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: left;
+            background: var(--bg);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        /* --- App Shell --- */
+        #appShell {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+        .sidebar-header {
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 700;
+            font-size: 1.2rem;
+            gap: 10px;
+            background: linear-gradient(90deg, var(--primary), var(--accent-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .sidebar-nav { padding: 20px 0; flex-grow: 1; overflow-y: auto; }
+        .nav-item {
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+            border-right: 3px solid var(--primary);
+        }
+        .nav-item.active { color: var(--primary); }
+        .nav-item i { width: 20px; height: 20px; }
+
+        /* Main Content */
+        .main-wrapper {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg);
+        }
+        #topbar {
+            height: var(--header-height);
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 15px; }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            background: var(--surface-2);
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--verde);
+            box-shadow: 0 0 8px var(--verde);
+            animation: pulse 2s infinite;
+        }
+        .status-dot.offline { background: var(--rojo); box-shadow: 0 0 8px var(--rojo); }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(76, 175, 80, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--accent-pink));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .user-info { display: flex; flex-direction: column; }
+        .user-name { font-size: 0.9rem; font-weight: 500; }
+        .user-role { font-size: 0.75rem; color: var(--text-muted); }
+
+        #mainContent {
+            padding: 30px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        /* --- Views --- */
+        .view-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .view-title { font-size: 1.5rem; font-weight: 600; }
+
+        /* Dashboard Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .kpi-card {
+            background: var(--surface);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: transform 0.2s;
+        }
+        .kpi-card:hover { transform: translateY(-3px); }
+        .kpi-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: var(--surface-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+        }
+        .kpi-card.pink .kpi-icon { color: var(--accent-pink); }
+        .kpi-card.orange .kpi-icon { color: var(--accent-orange); }
+        .kpi-card.green .kpi-icon { color: var(--verde); }
+
+        .kpi-info h3 { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; margin-bottom: 4px; }
+        .kpi-info .value { font-size: 1.8rem; font-weight: 700; }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .chart-card {
+            background: var(--surface);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        .chart-card h3 { margin-bottom: 20px; font-size: 1.1rem; }
+        .chart-container { position: relative; height: 250px; width: 100%; display: flex; justify-content: center; }
+
+        /* Tables */
+        .table-container {
+            background: var(--surface);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            background: var(--surface-2);
+            text-align: left;
+            padding: 16px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: rgba(255,255,255,0.02); }
+
+        /* Horario Grid */
+        .horario-container {
+            background: var(--surface);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow: auto;
+        }
+        .horario-grid {
+            display: grid;
+            grid-template-columns: 80px repeat(5, 1fr);
+            min-width: 800px;
+        }
+        .horario-header {
+            background: var(--surface-2);
+            padding: 12px;
+            text-align: center;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+        }
+        .horario-time {
+            background: var(--surface-2);
+            padding: 12px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-align: right;
+            border-bottom: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        .horario-cell {
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+            border-right: 1px solid var(--border);
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .clase-card {
+            background: var(--surface-2);
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 0.75rem;
+            border-left: 3px solid var(--primary);
+        }
+        .clase-card .est-nombre { font-weight: 600; margin-bottom: 4px; }
+        .clase-card .prof-nombre { color: var(--text-muted); font-size: 0.7rem; }
+    
+        /* --- Modals --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-content {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; width: 100%; max-width: 600px; max-height: 90vh;
+            overflow-y: auto; padding: 30px; transform: translateY(20px); transition: transform 0.3s;
+        }
+        .modal-overlay.active .modal-content { transform: translateY(0); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h2 { font-size: 1.25rem; font-weight: 600; }
+        .close-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; }
+        .close-btn:hover { color: var(--text); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen">
+        <div class="login-card">
+            <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+                <i data-lucide="hexagon" style="width: 48px; height: 48px; color: var(--primary);"></i>
+            </div>
+            <h1>Runika EduPanel</h1>
+            <p>Centro Kumon Ipiales</p>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Rol de acceso</label>
+                    <select id="loginRole">
+                        <option value="admin">Administrador</option>
+                        <option value="profesor">Profesor</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Correo Electrónico</label>
+                    <input type="email" id="loginEmail" placeholder="ejemplo@kumon.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary login-btn">
+                    Iniciar Sesión <i data-lucide="arrow-right"></i>
+                </button>
+            </form>
+
+            <div class="demo-credentials">
+                <strong>Credenciales Demo:</strong><br>
+                Admin: admin@kumon.com / admin123<br>
+                Profesor 1: andrea@kumon.com / prof123<br>
+                Profesor 2: pablo@kumon.com / prof123
+            </div>
+        </div>
+    </div>
+
+    <!-- APP SHELL -->
+    <div id="appShell" class="hidden">
+
+        <!-- SIDEBAR -->
+        <aside id="sidebar">
+            <div class="sidebar-header">
+                <i data-lucide="hexagon"></i>
+                <span>EduPanel</span>
+            </div>
+            <nav class="sidebar-nav">
+                <!-- Se inyecta por JS según rol -->
+            </nav>
+        </aside>
+
+        <!-- MAIN WRAPPER -->
+        <div class="main-wrapper">
+            <!-- TOPBAR -->
+            <header id="topbar">
+                <div class="topbar-left">
+                    <div class="status-indicator" id="apiStatus">
+                        <div class="status-dot"></div>
+                        <span>API Conectada</span>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <button class="btn" onclick="nuevoDiagnostico()">
+                        <i data-lucide="file-video"></i> Nuevo Diagnóstico
+                    </button>
+                    <div class="user-profile">
+                        <div class="user-info" style="text-align: right;">
+                            <span class="user-name" id="topbarName">Nombre Apellido</span>
+                            <span class="user-role" id="topbarRole">Rol</span>
+                        </div>
+                        <div class="avatar" id="topbarAvatar">NA</div>
+                        <button class="btn" style="padding: 8px;" onclick="logout()" title="Cerrar sesión">
+                            <i data-lucide="log-out"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- MAIN CONTENT (VIEWS) -->
+            
+            <!-- MODALS -->
+            <div id="modalEstudiante" class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Crear Nuevo Estudiante</h2>
+                        <button class="close-btn" onclick="cerrarModal('modalEstudiante')"><i data-lucide="x"></i></button>
+                    </div>
+                    <form id="formEstudiante" onsubmit="guardarEstudiante(event)">
+                        <div class="form-row">
+                            <div class="form-group"><label>Nombres</label><input type="text" id="estNombres" required></div>
+                            <div class="form-group"><label>Apellidos</label><input type="text" id="estApellidos" required></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Documento</label><input type="text" id="estDoc" required></div>
+                            <div class="form-group"><label>Email</label><input type="email" id="estEmail" required></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Materias (Ctrl+Click para varias)</label>
+                            <select id="estMaterias" multiple style="height: 80px;" required>
+                                <option value="Mat">Matemáticas</option><option value="Esp">Español</option><option value="Ing">Inglés</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Profesor Asignado</label>
+                            <select id="estProfesor" required>
+                                <option value="Andrea García">Andrea García</option><option value="Pablo Martínez">Pablo Martínez</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                            <button type="button" class="btn" onclick="cerrarModal('modalEstudiante')">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Guardar Estudiante</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div id="modalProfesor" class="modal-overlay">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Crear Nuevo Profesor</h2>
+                        <button class="close-btn" onclick="cerrarModal('modalProfesor')"><i data-lucide="x"></i></button>
+                    </div>
+                    <form id="formProfesor" onsubmit="guardarProfesor(event)">
+                        <div class="form-row">
+                            <div class="form-group"><label>Nombre Completo</label><input type="text" id="profNombre" required></div>
+                            <div class="form-group"><label>Email Corporativo</label><input type="email" id="profEmail" required></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Materias Capacitado</label>
+                            <select id="profMaterias" multiple style="height: 80px;" required>
+                                <option value="Mat">Matemáticas</option><option value="Esp">Español</option><option value="Ing">Inglés</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Contraseña Temporal</label>
+                            <input type="text" id="profPass" value="prof123" required>
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                            <button type="button" class="btn" onclick="cerrarModal('modalProfesor')">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Guardar Profesor</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- END MODALS -->
+            <main id="mainContent">
+                <!-- Vistas inyectadas por JS -->
+            </main>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script>
+        // Inicializar iconos
+        lucide.createIcons();
+
+        
+        // --- LOGIC FOR MODALS AND CRUD ---
+        function abrirModal(id) { document.getElementById(id).classList.add('active'); }
+        function cerrarModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function guardarEstudiante(e) {
+            e.preventDefault();
+            const materiasOpts = document.getElementById('estMaterias').selectedOptions;
+            const materias = Array.from(materiasOpts).map(opt => opt.value);
+
+            const nuevo = {
+                id: DEMO_DATA.estudiantes.length + 1,
+                nombre: document.getElementById('estNombres').value + ' ' + document.getElementById('estApellidos').value,
+                materias: materias,
+                profesor: document.getElementById('estProfesor').value,
+                horario: [] // Por defecto sin horario hasta asignarlo
+            };
+
+            DEMO_DATA.estudiantes.unshift(nuevo); // Agregar al inicio
+            cerrarModal('modalEstudiante');
+            document.getElementById('formEstudiante').reset();
+            renderEstudiantes(document.getElementById('mainContent')); // Refrescar vista
+            alert('Estudiante creado exitosamente');
+        }
+
+        function guardarProfesor(e) {
+            e.preventDefault();
+            const materiasOpts = document.getElementById('profMaterias').selectedOptions;
+            const materias = Array.from(materiasOpts).map(opt => opt.value);
+
+            const nuevo = {
+                id: DEMO_DATA.profesores.length + 1,
+                nombre: document.getElementById('profNombre').value,
+                email: document.getElementById('profEmail').value,
+                pass: document.getElementById('profPass').value,
+                materias: materias,
+                estudiantes: 0
+            };
+
+            DEMO_DATA.profesores.unshift(nuevo);
+            cerrarModal('modalProfesor');
+            document.getElementById('formProfesor').reset();
+            renderProfesores(document.getElementById('mainContent'));
+            alert('Profesor creado exitosamente');
+        }
+
+        // --- FIN LOGIC MODALS ---
+    
+        // -------------------------
+        // ESTADO Y DATOS DEMO
+        // -------------------------
+        const API = 'http://localhost:8000';
+        let currentUser = null;
+        let chartInstanceMat = null;
+        let chartInstanceSem = null;
+
+        const DEMO_DATA = {
+            profesores: [
+                { id: 1, nombre: 'Andrea García', email: 'andrea@kumon.com', pass: 'prof123', materias: ['Mat', 'Esp', 'Ing'], estudiantes: 45 },
+                { id: 2, nombre: 'Pablo Martínez', email: 'pablo@kumon.com', pass: 'prof123', materias: ['Mat', 'Esp', 'Ing'], estudiantes: 38 }
+            ],
+            estudiantes: [
+                { id: 1, nombre: 'Mathyas Cevallos', materias: ['Ing'], profesor: 'Andrea García', horario: [{dia:'Lunes', franja:'9:00'}, {dia:'Miércoles', franja:'9:00'}] },
+                { id: 2, nombre: 'Juan Pablo Tucanez', materias: ['Mat'], profesor: 'Andrea García', horario: [{dia:'Lunes', franja:'9:00'}, {dia:'Miércoles', franja:'9:00'}] },
+                { id: 3, nombre: 'Samuel Mesa', materias: ['Esp','Ing'], profesor: 'Andrea García', horario: [{dia:'Lunes', franja:'9:00'}, {dia:'Miércoles', franja:'9:00'}] },
+                { id: 4, nombre: 'Sofia Almeida', materias: ['Mat','Ing'], profesor: 'Pablo Martínez', horario: [{dia:'Lunes', franja:'14:30'}, {dia:'Jueves', franja:'17:00'}] },
+                { id: 5, nombre: 'Dylan Enriquez', materias: ['Mat','Esp','Ing'], profesor: 'Pablo Martínez', horario: [{dia:'Lunes', franja:'16:00'}, {dia:'Miércoles', franja:'16:00'}, {dia:'Viernes', franja:'16:00'}] },
+                { id: 6, nombre: 'Alejandro Garzon', materias: ['Mat','Esp','Ing'], profesor: 'Andrea García', horario: [{dia:'Lunes', franja:'15:00'}, {dia:'Miércoles', franja:'15:00'}] },
+                { id: 7, nombre: 'Isaac Ceballos', materias: ['Mat','Esp','Ing'], profesor: 'Andrea García', horario: [{dia:'Lunes', franja:'15:30'}, {dia:'Jueves', franja:'15:30'}] },
+                { id: 8, nombre: 'Maria Jose Cadena', materias: ['Mat','Esp','Ing'], profesor: 'Pablo Martínez', horario: [{dia:'Lunes', franja:'15:00'}, {dia:'Miércoles', franja:'15:00'}] },
+                { id: 9, nombre: 'Santiago Pismag', materias: ['Mat'], profesor: 'Andrea García', horario: [{dia:'Martes', franja:'14:00'}, {dia:'Jueves', franja:'14:00'}] },
+                { id: 10, nombre: 'Sara María Moreno', materias: ['Ing'], profesor: 'Pablo Martínez', horario: [{dia:'Martes', franja:'16:30'}, {dia:'Viernes', franja:'16:30'}] }
+            ],
+            kpis: { totalEstudiantes: 83, totalProfesores: 2, clasesHoy: 24, boletinesGenerados: 47 },
+            semaforo: { verde: 31, amarillo: 28, rojo: 13 },
+            materias: { mat: 65, esp: 71, ing: 54 },
+            jobs: [
+                { id: 'job-101', estudiante: 'Mathyas Cevallos', materia: 'Ing', status: 'COMPLETED', date: '2026-05-04 10:30', score: 85, semaforo: 'verde' },
+                { id: 'job-102', estudiante: 'Samuel Mesa', materia: 'Esp', status: 'PROCESSING', date: '2026-05-04 11:15', score: null, semaforo: null },
+                { id: 'job-103', estudiante: 'Sofia Almeida', materia: 'Mat', status: 'COMPLETED', date: '2026-05-03 16:45', score: 62, semaforo: 'amarillo' },
+                { id: 'job-104', estudiante: 'Dylan Enriquez', materia: 'Esp', status: 'COMPLETED', date: '2026-05-02 09:10', score: 45, semaforo: 'rojo' }
+            ],
+            notas: [
+                { fecha: '2026-05-03', estudiante: 'Mathyas Cevallos', materia: 'Ing', observacion: 'Excelente pronunciación en la unidad 4.', estrellas: 5 },
+                { fecha: '2026-05-03', estudiante: 'Sofia Almeida', materia: 'Mat', observacion: 'Dificultades con fracciones, repasar hoja B20.', estrellas: 3 }
+            ]
+        };
+
+        const FRANJAS = ['8:00', '9:00', '9:30', '10:00', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00'];
+        const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+
+        
+        // -------------------------
+        // INTEGRACIÓN REAL CON BACKEND (Para conectar con PostgreSQL)
+        // -------------------------
+        /* 
+        INSTRUCCIONES PARA TU COMPAÑERO:
+        Cuando él cree los endpoints (ej. POST /api/v1/estudiantes), solo debes 
+        descomentar estas funciones y reemplazar las actuales.
+
+        async function fetchGuardarEstudiante(estudianteData) {
+            try {
+                const response = await fetch(`${API}/api/v1/estudiantes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(estudianteData)
+                });
+                if (response.ok) {
+                    alert('Estudiante guardado en PostgreSQL correctamente');
+                    // Recargar lista desde BD
+                }
+            } catch (error) {
+                console.error("Error conectando al backend:", error);
+            }
+        }
+
+        async function fetchCargarJobs() {
+            try {
+                // Asumiendo que tu compañero crea un endpoint para listar todos los jobs
+                const response = await fetch(`${API}/api/v1/jobs`); 
+                const data = await response.json();
+                // renderDiagnosticos(data);
+            } catch (error) {
+                console.error("Error cargando jobs:", error);
+            }
+        }
+        */
+    
+        // -------------------------
+        // UTILIDADES
+        // -------------------------
+        function getInitials(name) {
+            return name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
+        }
+
+        function renderBadges(materias) {
+            return materias.map(m => `<span class="badge badge-${m.toLowerCase()}">${m}</span>`).join(' ');
+        }
+
+        async function checkBackend() {
+            const apiStatus = document.getElementById('apiStatus');
+            const dot = apiStatus.querySelector('.status-dot');
+            const span = apiStatus.querySelector('span');
+            try {
+                const r = await fetch(`${API}/health`);
+                const d = await r.json();
+                if(d.status === 'ok' || r.ok) {
+                    dot.classList.remove('offline');
+                    span.textContent = 'API Conectada';
+                }
+            } catch {
+                dot.classList.add('offline');
+                span.textContent = 'API Offline (Modo Demo)';
+            }
+        }
+
+        function nuevoDiagnostico() {
+            window.open('./index.html', '_blank');
+        }
+
+        // -------------------------
+        // AUTHENTICATION
+        // -------------------------
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const pass = document.getElementById('loginPassword').value;
+            const role = document.getElementById('loginRole').value;
+
+            if (role === 'admin' && email === 'admin@kumon.com' && pass === 'admin123') {
+                login({ name: 'Administrador', email, role: 'admin' });
+            } else if (role === 'profesor') {
+                const prof = DEMO_DATA.profesores.find(p => p.email === email && p.pass === pass);
+                if (prof) {
+                    login({ name: prof.nombre, email, role: 'profesor' });
+                } else {
+                    alert('Credenciales de profesor incorrectas');
+                }
+            } else {
+                alert('Credenciales incorrectas');
+            }
+        });
+
+        function login(user) {
+            currentUser = user;
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('appShell').classList.remove('hidden');
+
+            document.getElementById('topbarName').textContent = user.name;
+            document.getElementById('topbarRole').textContent = user.role === 'admin' ? 'Administrador' : 'Profesor';
+            document.getElementById('topbarAvatar').textContent = getInitials(user.name);
+
+            renderSidebar();
+            checkBackend();
+            setInterval(checkBackend, 30000);
+
+            // Navigate to default view
+            navigateTo(user.role === 'admin' ? 'dashboard' : 'horario');
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('appShell').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('loginForm').reset();
+        }
+
+        // -------------------------
+        // ROUTER & SIDEBAR
+        // -------------------------
+        function renderSidebar() {
+            const nav = document.querySelector('.sidebar-nav');
+            let html = '';
+
+            if (currentUser.role === 'admin') {
+                html += `
+                    <a class="nav-item" onclick="navigateTo('dashboard')" id="nav-dashboard"><i data-lucide="layout-dashboard"></i> Dashboard</a>
+                    <a class="nav-item" onclick="navigateTo('estudiantes')" id="nav-estudiantes"><i data-lucide="users"></i> Estudiantes</a>
+                    <a class="nav-item" onclick="navigateTo('profesores')" id="nav-profesores"><i data-lucide="graduation-cap"></i> Profesores</a>
+                    <a class="nav-item" onclick="navigateTo('horario')" id="nav-horario"><i data-lucide="calendar"></i> Horario Semanal</a>
+                    <a class="nav-item" onclick="navigateTo('diagnosticos')" id="nav-diagnosticos"><i data-lucide="activity"></i> Diagnósticos</a>
+                `;
+            } else {
+                html += `
+                    <a class="nav-item" onclick="navigateTo('horario')" id="nav-horario"><i data-lucide="calendar"></i> Mi Horario</a>
+                    <a class="nav-item" onclick="navigateTo('estudiantes')" id="nav-estudiantes"><i data-lucide="users"></i> Mis Estudiantes</a>
+                    <a class="nav-item" onclick="navigateTo('notas')" id="nav-notas"><i data-lucide="book-open"></i> Notas de Clase</a>
+                    <a class="nav-item" onclick="navigateTo('diagnosticos')" id="nav-diagnosticos"><i data-lucide="activity"></i> Diagnósticos</a>
+                `;
+            }
+            nav.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        function navigateTo(viewId) {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const activeNav = document.getElementById(`nav-${viewId}`);
+            if(activeNav) activeNav.classList.add('active');
+
+            const main = document.getElementById('mainContent');
+
+            if (chartInstanceMat) chartInstanceMat.destroy();
+            if (chartInstanceSem) chartInstanceSem.destroy();
+
+            switch(viewId) {
+                case 'dashboard': renderDashboard(main); break;
+                case 'estudiantes': renderEstudiantes(main); break;
+                case 'profesores': renderProfesores(main); break;
+                case 'horario': renderHorario(main); break;
+                case 'notas': renderNotas(main); break;
+                case 'diagnosticos': renderDiagnosticos(main); break;
+            }
+            lucide.createIcons();
+        }
+
+        // -------------------------
+        // VISTAS
+        // -------------------------
+        function renderDashboard(container) {
+            const k = DEMO_DATA.kpis;
+            container.innerHTML = `
+                <div class="view-header">
+                    <h2 class="view-title">Dashboard General</h2>
+                </div>
+
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon"><i data-lucide="users"></i></div>
+                        <div class="kpi-info"><h3>Total Estudiantes</h3><div class="value">${k.totalEstudiantes}</div></div>
+                    </div>
+                    <div class="kpi-card pink">
+                        <div class="kpi-icon"><i data-lucide="graduation-cap"></i></div>
+                        <div class="kpi-info"><h3>Profesores</h3><div class="value">${k.totalProfesores}</div></div>
+                    </div>
+                    <div class="kpi-card orange">
+                        <div class="kpi-icon"><i data-lucide="calendar-check"></i></div>
+                        <div class="kpi-info"><h3>Clases Hoy</h3><div class="value">${k.clasesHoy}</div></div>
+                    </div>
+                    <div class="kpi-card green">
+                        <div class="kpi-icon"><i data-lucide="file-check-2"></i></div>
+                        <div class="kpi-info"><h3>Boletines</h3><div class="value">${k.boletinesGenerados}</div></div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="chart-card">
+                        <h3>Distribución por Materia</h3>
+                        <div class="chart-container"><canvas id="chartMaterias"></canvas></div>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Resultados Diagnósticos (Semáforo)</h3>
+                        <div class="chart-container"><canvas id="chartSemaforo"></canvas></div>
+                    </div>
+                </div>
+            `;
+
+            // Init Charts
+            const ctxMat = document.getElementById('chartMaterias').getContext('2d');
+            chartInstanceMat = new Chart(ctxMat, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Matemáticas', 'Español', 'Inglés'],
+                    datasets: [{
+                        data: [DEMO_DATA.materias.mat, DEMO_DATA.materias.esp, DEMO_DATA.materias.ing],
+                        backgroundColor: ['#4FC3F7', '#FF8A65', '#81C784'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { plugins: { legend: { position: 'bottom', labels: { color: '#F0F2FF' } } }, maintainAspectRatio: false }
+            });
+
+            const ctxSem = document.getElementById('chartSemaforo').getContext('2d');
+            chartInstanceSem = new Chart(ctxSem, {
+                type: 'bar',
+                data: {
+                    labels: ['Verde (Avanzado)', 'Amarillo (Intermedio)', 'Rojo (Refuerzo)'],
+                    datasets: [{
+                        label: 'Estudiantes',
+                        data: [DEMO_DATA.semaforo.verde, DEMO_DATA.semaforo.amarillo, DEMO_DATA.semaforo.rojo],
+                        backgroundColor: ['#4CAF50', '#FFC107', '#F44336'],
+                        borderRadius: 6
+                    }]
+                },
+                options: { 
+                    plugins: { legend: { display: false } }, 
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { color: '#8B90A7' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        x: { ticks: { color: '#8B90A7' }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderEstudiantes(container) {
+            let estudiantes = DEMO_DATA.estudiantes;
+            if(currentUser.role === 'profesor') {
+                estudiantes = estudiantes.filter(e => e.profesor === currentUser.name);
+            }
+
+            let rows = estudiantes.map(e => `
+                <tr>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div class="avatar" style="width:30px;height:30px;font-size:0.7rem;">${getInitials(e.nombre)}</div>
+                            ${e.nombre}
+                        </div>
+                    </td>
+                    <td>${renderBadges(e.materias)}</td>
+                    <td>${e.profesor}</td>
+                    <td>
+                        <button class="btn" style="padding: 6px 10px; font-size:0.8rem;"><i data-lucide="eye" style="width:14px;"></i> Ver</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="view-header">
+                    <h2 class="view-title">${currentUser.role === 'admin' ? 'Gestión de Estudiantes' : 'Mis Estudiantes'}</h2>
+                    ${currentUser.role === 'admin' ? `<button class="btn btn-primary" onclick="abrirModal('modalEstudiante')"><i data-lucide="plus"></i> Nuevo Estudiante</button>` : ''}
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nombre Completo</th>
+                                <th>Materias</th>
+                                <th>Profesor Asignado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderProfesores(container) {
+            let rows = DEMO_DATA.profesores.map(p => `
+                <tr>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div class="avatar" style="width:30px;height:30px;font-size:0.7rem;">${getInitials(p.nombre)}</div>
+                            <div>
+                                <div style="font-weight:500;">${p.nombre}</div>
+                                <div style="font-size:0.75rem; color:var(--text-muted);">${p.email}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${renderBadges(p.materias)}</td>
+                    <td>${p.estudiantes}</td>
+                    <td>
+                        <button class="btn" style="padding: 6px 10px; font-size:0.8rem;"><i data-lucide="edit" style="width:14px;"></i> Editar</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="view-header">
+                    <h2 class="view-title">Gestión de Profesores</h2>
+                    <button class="btn btn-primary" onclick="abrirModal('modalProfesor')"><i data-lucide="user-plus"></i> Nuevo Profesor</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Profesor</th>
+                                <th>Materias Capacitado</th>
+                                <th>Estudiantes Asignados</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderHorario(container) {
+            let estudiantes = DEMO_DATA.estudiantes;
+            if(currentUser.role === 'profesor') {
+                estudiantes = estudiantes.filter(e => e.profesor === currentUser.name);
+            }
+
+            let gridHtml = '';
+
+            // Header Row
+            gridHtml += `<div class="horario-header">Hora</div>`;
+            DIAS.forEach(d => { gridHtml += `<div class="horario-header">${d}</div>`; });
+
+            // Body Rows
+            FRANJAS.forEach(franja => {
+                gridHtml += `<div class="horario-time">${franja}</div>`;
+                DIAS.forEach(dia => {
+                    // Buscar clases en esta celda
+                    const clases = estudiantes.filter(e => e.horario.some(h => h.dia === dia && h.franja === franja));
+
+                    let cellContent = '';
+                    clases.forEach(c => {
+                        cellContent += `
+                            <div class="clase-card">
+                                <div class="est-nombre">${c.nombre}</div>
+                                <div>${renderBadges(c.materias)}</div>
+                                ${currentUser.role === 'admin' ? `<div class="prof-nombre">${c.profesor}</div>` : ''}
+                            </div>
+                        `;
+                    });
+
+                    gridHtml += `<div class="horario-cell">${cellContent}</div>`;
+                });
+            });
+
+            container.innerHTML = `
+                <div class="view-header">
+                    <h2 class="view-title">Horario Semanal</h2>
+                </div>
+                <div class="horario-container">
+                    <div class="horario-grid">
+                        ${gridHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderNotas(container) {
+            let notas = DEMO_DATA.notas;
+
+            let rows = notas.map(n => `
+                <tr>
+                    <td>${n.fecha}</td>
+                    <td>${n.estudiante}</td>
+                    <td><span class="badge badge-${n.materia.toLowerCase()}">${n.materia}</span></td>
+                    <td>${'⭐'.repeat(n.estrellas)}</td>
+                    <td>${n.observacion}</td>
+                </tr>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="view-header">
+                    <h2 class="view-title">Notas de Clase</h2>
+                    <button class="btn btn-primary"><i data-lucide="pen-tool"></i> Registrar Nota</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Estudiante</th>
+                                <th>Materia</th>
+                                <th>Avance</th>
+                                <th>Observación</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function renderDiagnosticos(container) {
+            let jobs = DEMO_DATA.jobs;
+
+            let rows = jobs.map(j => {
+                let statusBadge = '';
+                if(j.status === 'COMPLETED') statusBadge = `<span class="badge" style="background:rgba(76,175,80,0.1); color:#4CAF50;">COMPLETADO</span>`;
+                else statusBadge = `<span class="badge" style="background:rgba(255,193,7,0.1); color:#FFC107;">PROCESANDO</span>`;
+
+                let semBadge = '-';
+                if(j.semaforo) {
+                    const colors = { verde: '#4CAF50', amarillo: '#FFC107', rojo: '#F44336' };
+                    semBadge = `<span style="display:inline-flex; width:12px; height:12px; border-radius:50%; background:${colors[j.semaforo]};"></span>`;
+                }
+
+                return `
+                <tr>
+                    <td>${j.id}</td>
+                    <td>${j.date}</td>
+                    <td>${j.estudiante}</td>
+                    <td><span class="badge badge-${j.materia.toLowerCase()}">${j.materia}</span></td>
+                    <td>${statusBadge}</td>
+                    <td>${j.score !== null ? j.score + '/100' : '-'}</td>
+                    <td>${semBadge}</td>
+                    <td>
+                        <button class="btn" style="padding: 6px 10px; font-size:0.8rem;" ${j.status !== 'COMPLETED' ? 'disabled' : ''}>
+                            <i data-lucide="file-text" style="width:14px;"></i> Boletín
+                        </button>
+                    </td>
+                </tr>
+            `}).join('');
+
+            container.innerHTML = `
+                <div class="view-header">
+                    <h2 class="view-title">Diagnósticos y Resultados</h2>
+                    <button class="btn btn-primary" onclick="nuevoDiagnostico()"><i data-lucide="file-video"></i> Subir Video</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Job ID</th>
+                                <th>Fecha</th>
+                                <th>Estudiante</th>
+                                <th>Materia</th>
+                                <th>Estado</th>
+                                <th>Puntaje</th>
+                                <th>Semáforo</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

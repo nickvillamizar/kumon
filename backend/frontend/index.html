@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kumon · Diagnóstico</title>
+
+  <!-- CSS: Design Tokens + Base + Layout + Components -->
+  <link rel="stylesheet" href="./css/tokens.css" />
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/layout.css" />
+  <link rel="stylesheet" href="./css/components.css" />
+
+  <!-- CSS: Módulos por sección -->
+  <link rel="stylesheet" href="./css/modules/upload.css" />
+  <link rel="stylesheet" href="./css/modules/pipeline.css" />
+  <link rel="stylesheet" href="./css/modules/result.css" />
+  <link rel="stylesheet" href="./css/modules/cuestionario.css" />
+  <link rel="stylesheet" href="./css/modules/boletin.css" />
+</head>
+
+<body>
+
+  <!-- ══════════════════════════════════════════════════════════
+       HEADER
+  ══════════════════════════════════════════════════════════ -->
+  <header class="app-header">
+    <div class="header-inner">
+
+      <div class="header-brand">
+        <svg class="brand-logo" width="40" height="40" viewBox="0 0 32 32" fill="none"
+             xmlns="http://www.w3.org/2000/svg" aria-label="Kumon">
+          <rect width="32" height="32" rx="8" fill="currentColor" opacity="0.12"/>
+          <path d="M8 8 L8 24 M8 16 L16 8 M8 16 L18 24" stroke="currentColor"
+                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="23" cy="12" r="4" fill="currentColor" opacity="0.85"/>
+        </svg>
+        <span class="brand-name">Kumon <span class="brand-sub">Diagnóstico</span></span>
+      </div>
+
+      <div class="header-meta">
+        <!-- Indicador estado backend
+             backendDot  → .backend-status-dot  (ui.js)
+             backendLabel → .backend-status-text (ui.js) -->
+        <div class="backend-status" aria-live="polite">
+          <span class="backend-status-dot pending" aria-hidden="true"></span>
+          <span class="backend-status-text">Verificando...</span>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       MAIN
+  ══════════════════════════════════════════════════════════ -->
+  <main class="app-main">
+
+
+    <!-- ──────────────────────────────────────────────────────
+         SECCIÓN 1 · UPLOAD
+         IDs alineados con VideoUploadForm del backend
+         y con el objeto el.* de ui.js.
+    ────────────────────────────────────────────────────────── -->
+    <section id="uploadSection" class="app-section">
+
+      <div class="section-header">
+        <h2 class="section-title">Nuevo diagnóstico</h2>
+        <p class="section-description">
+          Completa los datos del estudiante y sube el video de Class Navi
+          para iniciar el análisis automático.
+        </p>
+      </div>
+
+      <div id="uploadAlert" class="alert alert-info"
+           style="display:none" role="alert"></div>
+
+      <form id="uploadForm" class="upload-form" novalidate>
+
+        <!-- nombre_completo → el.nombreCompletoInput -->
+        <div class="form-group">
+          <label class="form-label" for="nombreCompletoInput">
+            Nombre del estudiante
+          </label>
+          <input
+            id="nombreCompletoInput"
+            class="form-input"
+            type="text"
+            placeholder="Ej. Juan Pérez"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="form-row">
+
+          <!-- subject → el.subjectInput (obligatorio) -->
+          <div class="form-group">
+            <label class="form-label" for="subjectInput">
+              Materia <span class="required" aria-hidden="true">*</span>
+            </label>
+            <select id="subjectInput" class="form-input form-select" required>
+              <option value="">— Selecciona —</option>
+              <option value="español">Español</option>
+              <option value="ingles">Inglés</option>
+              <option value="matematicas">Matemáticas</option>
+            </select>
+          </div>
+
+          <!-- test_code → el.testCodeInput (obligatorio) -->
+          <div class="form-group">
+            <label class="form-label" for="testCodeInput">
+              Nivel de prueba <span class="required" aria-hidden="true">*</span>
+            </label>
+            <input
+              id="testCodeInput"
+              class="form-input"
+              type="text"
+              placeholder="Ej. K1-MAT"
+              autocomplete="off"
+              required
+            />
+          </div>
+
+        </div>
+
+        <!-- Drop zone -->
+        <div id="uploadDropZone" class="upload-dropzone" role="button"
+             tabindex="0" aria-label="Área para subir video">
+          <div class="dropzone-inner">
+            <svg class="dropzone-icon" width="40" height="40" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0
+                       0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+            </svg>
+            <p class="dropzone-label">
+              Arrastra el video aquí o
+              <label for="uploadInput" class="dropzone-browse">
+                selecciona un archivo
+              </label>
+            </p>
+            <p id="uploadDropFilename" class="dropzone-filename"></p>
+            <p class="dropzone-hint">MP4, AVI, MOV — máx. 500 MB</p>
+          </div>
+          <input
+            id="uploadInput"
+            class="sr-only"
+            type="file"
+            accept="video/*"
+            aria-label="Seleccionar archivo de video"
+          />
+        </div>
+
+        <!-- Barra de progreso upload -->
+        <div id="uploadProgressWrap" class="progress-wrap hidden" aria-live="polite">
+          <div class="progress-bar" role="progressbar"
+               aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="uploadProgressFill" class="progress-bar-fill"></div>
+          </div>
+          <span id="uploadProgressPct" class="progress-pct">0%</span>
+        </div>
+
+        <!-- Acciones -->
+        <div class="form-actions">
+          <button id="uploadBtn" class="btn btn-primary" type="submit">
+            Procesar video
+          </button>
+          <button id="resetBtn" class="btn btn-ghost" type="button">
+            Nueva sesión
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+
+    <!-- ──────────────────────────────────────────────────────
+         SECCIÓN 2 · PIPELINE
+         data-step alineados con PIPELINE_STEPS de config.js:
+         upload → queued → processing → done → validated → boletin
+    ────────────────────────────────────────────────────────── -->
+    <section id="pipelineSection" class="app-section hidden">
+
+      <div class="section-header">
+        <h2 class="section-title">Procesando video</h2>
+        <p class="section-description">
+          El sistema está analizando el video. Este proceso puede tardar
+          unos minutos dependiendo de la duración del video.
+        </p>
+      </div>
+
+      <ol class="pipeline-steps" aria-label="Pasos del procesamiento">
+
+        <li class="pipeline-step" data-step="upload">
+          <span class="step-icon" aria-hidden="true"></span>
+          <span class="step-label">Video recibido</span>
+          <span class="step-status" aria-live="polite"></span>
+        </li>
+
+        <li class="pipeline-step" data-step="queued">
+          <span class="step-icon" aria-hidden="true"></span>
+          <span class="step-label">En cola</span>
+          <span class="step-status" aria-live="polite"></span>
+        </li>
+
+        <li class="pipeline-step" data-step="processing">
+          <span class="step-icon" aria-hidden="true"></span>
+          <span class="step-label">Análisis del video</span>
+          <span class="step-status" aria-live="polite"></span>
+        </li>
+
+        <li class="pipeline-step" data-step="done">
+          <span class="step-icon" aria-hidden="true"></span>
+          <span class="step-label">Resultado calculado</span>
+          <span class="step-status" aria-live="polite"></span>
+        </li>
+
+        <li class="pipeline-step" data-step="validated">
+          <span class="step-icon" aria-hidden="true"></span>
+          <span class="step-label">Validación del orientador</span>
+          <span class="step-status" aria-live="polite"></span>
+        </li>
+
+        <li class="pipeline-step" data-step="boletin">
+          <span class="step-icon" aria-hidden="true"></span>
+          <span class="step-label">Boletín generado</span>
+          <span class="step-status" aria-live="polite"></span>
+        </li>
+
+      </ol>
+
+      <!-- Estado y progreso del job -->
+      <div id="jobStatusBlock" class="job-status-block" aria-live="polite">
+        <div class="job-status-row">
+          <span class="job-status-label">Estado:</span>
+          <span id="jobStatusValue" class="tag tag-default">—</span>
+        </div>
+
+        <div id="jobProgressBar" class="progress-wrap">
+          <div class="progress-bar" role="progressbar"
+               aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="jobProgressFill" class="progress-bar-fill"></div>
+          </div>
+          <span id="jobProgressPct" class="progress-pct">0%</span>
+        </div>
+
+        <p id="jobProgressText" class="job-progress-text"></p>
+      </div>
+
+    </section>
+
+
+    <!-- ──────────────────────────────────────────────────────
+         SECCIÓN 3 · RESULTADO CUANTITATIVO
+    ────────────────────────────────────────────────────────── -->
+    <section id="resultSection" class="app-section hidden">
+
+      <div class="section-header">
+        <h2 class="section-title">Resultado del diagnóstico</h2>
+      </div>
+
+      <div id="resultAlert" class="alert alert-info"
+           style="display:none" role="alert"></div>
+
+      <div id="resultBlock" class="result-block hidden">
+
+        <!-- Hero: nombre del sujeto, WS, dot de confianza -->
+        <div class="result-hero">
+          <div class="result-hero-info">
+            <h3 id="resultHeroStudent" class="result-student-name">—</h3>
+            <p  id="resultHeroLevel"   class="result-student-level">—</p>
+          </div>
+
+        </div>
+
+        <!-- Banner revisión manual — innerHTML gestionado por resultado.js -->
+        <div id="manualReviewBanner" class="review-banner hidden"
+             role="alert" aria-live="assertive"></div>
+
+        <!-- Semáforo -->
+        <div id="semaforoBlock" class="semaforo-block">
+          <div  id="semaforoIcon"  class="semaforo-icon" aria-label="Semáforo"></div>
+          <span id="semaforoLabel" class="semaforo-label">—</span>
+        </div>
+
+        <!-- KPIs principales — generado por resultado.js -->
+        <div id="kpiGrid" class="kpi-grid" aria-label="Métricas principales"></div>
+
+        <!-- Detalles adicionales — generado por resultado.js -->
+        <div id="detailsGrid" class="details-grid" aria-label="Detalles del test"></div>
+
+        <!-- Recomendación pedagógica — generado por resultado.js -->
+        <div id="recommendationBox" class="recommendation-box hidden"></div>
+
+        <!-- Aviso validación pendiente — generado por resultado.js -->
+        <div id="validationNotice" class="validation-notice hidden"
+             role="status" aria-live="polite"></div>
+
+      </div>
+    </section>
+
+
+    <!-- ──────────────────────────────────────────────────────
+         SECCIÓN 4 · CUESTIONARIO CUALITATIVO
+         completadoPorInput → nombre del orientador (string)
+         observacion_cualitativa → textarea libre del orientador
+    ────────────────────────────────────────────────────────── -->
+    <section id="cuestionarioSection" class="app-section hidden">
+
+      <div class="section-header">
+        <div class="section-header-row">
+          <h2 class="section-title">Observación cualitativa</h2>
+          <span id="cuestionarioStatusTag" class="tag tag-default"
+                aria-live="polite">—</span>
+        </div>
+        <p id="cuestionarioStudent" class="section-description">—</p>
+      </div>
+
+      <div id="cuestionarioAlert" class="alert alert-info"
+           style="display:none" role="alert"></div>
+
+      <form id="cuestionarioForm" class="cuestionario-form" novalidate>
+
+        <!-- Preguntas inyectadas dinámicamente por cuestionario.js -->
+        <div id="cuestionarioBody" class="cuestionario-body"
+             aria-live="polite"></div>
+
+        <!-- Observación cualitativa libre del orientador
+             id="observacion_cualitativa" — leído por _getObservacionCualitativa()
+             en cuestionario.js → payload.observacion_cualitativa -->
+        <div class="form-group cuestionario-observacion">
+          <label class="form-label" for="observacion_cualitativa">
+            Observación del orientador
+            <span class="form-hint">(opcional)</span>
+          </label>
+          <textarea
+            id="observacion_cualitativa"
+            class="form-input form-textarea"
+            rows="4"
+            placeholder="Observaciones adicionales sobre el desempeño del estudiante..."
+          ></textarea>
+        </div>
+
+        <!-- Completado por — el.completadoPorInput → payload.completado_por -->
+        <div class="form-group">
+          <label class="form-label" for="completadoPorInput">
+            Completado por
+          </label>
+          <input
+            id="completadoPorInput"
+            class="form-input"
+            type="text"
+            placeholder="Nombre del orientador"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="form-actions">
+          <button id="saveCuestionarioBtn" class="btn btn-primary" type="submit">
+            Guardar validación
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+
+    <!-- ──────────────────────────────────────────────────────
+         SECCIÓN 5 · BOLETÍN (vista resumen orientador)
+         openBoletinBtn → navega a #boletinEditorSection
+         downloadPdfBtn → descarga PDF
+    ────────────────────────────────────────────────────────── -->
+    <section id="boletinSection" class="app-section hidden">
+
+      <div class="section-header">
+        <h2 class="section-title">Boletín de diagnóstico</h2>
+      </div>
+
+      <div id="boletinAlert" class="alert alert-info"
+           style="display:none" role="alert"></div>
+
+      <!-- Barra de estado — className gestionado completamente por boletin.js -->
+      <div id="boletinStatusBar" class="boletin-status-bar" aria-live="polite"></div>
+
+      <!-- Contenido del boletín -->
+      <div id="boletinContent" class="boletin-content hidden">
+
+        <!-- Hero: puntaje combinado + semáforo + confianza -->
+        <div class="boletin-hero">
+
+          <div id="boletinHeroScore" class="boletin-score"
+               aria-label="Puntaje combinado">—</div>
+
+          <div class="boletin-semaforo">
+            <div  id="boletinSemaforoIcon"  class="semaforo-icon" aria-hidden="true"></div>
+            <span id="boletinSemaforoLabel" class="semaforo-label">—</span>
+          </div>
+
+          <!-- Confianza OCR — dot + porcentaje -->
+          <div class="boletin-confidence">
+            <span id="boletinConfidenceDot" class="confidence-dot"
+                  aria-hidden="true"></span>
+            <span id="boletinConfidencePct" class="confidence-pct">—</span>
+          </div>
+
+        </div>
+
+        <!-- Banner revisión manual inline del boletín -->
+        <div id="boletinManualReviewBanner" class="review-banner hidden"
+             role="alert" aria-live="assertive"></div>
+
+        <!-- Métricas cuantitativas — generado por boletin.js -->
+        <div id="boletinMetricsGrid" class="boletin-metrics-grid"
+             aria-label="Métricas del boletín"></div>
+
+        <!-- Secciones cualitativas — generado por boletin.js -->
+        <div id="boletinSections" class="boletin-sections"
+             aria-label="Secciones cualitativas"></div>
+
+        <!-- Observación cualitativa del orientador — generado por boletin.js -->
+        <div id="boletinObservacion" class="boletin-observacion hidden"></div>
+
+        <!-- Panel de correcciones (se conserva para compatibilidad,
+             queda hidden permanentemente — el editor lo reemplaza) -->
+        <div id="correctionPanel" class="correction-panel hidden">
+          <h3 class="correction-panel-title">Correcciones del orientador</h3>
+          <div id="correctionGrid" class="correction-grid"
+               aria-label="Campos a corregir"></div>
+          <div class="form-actions">
+            <button id="saveCorrectionBtn" class="btn btn-secondary" type="button">
+              Guardar correcciones
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /boletinContent -->
+
+      <!-- Acciones del boletín -->
+      <div class="boletin-actions">
+
+        <!-- Navega al editor de boletín completo -->
+        <button id="openBoletinBtn" class="btn btn-secondary"
+                type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" aria-hidden="true" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M16.862 4.487l1.687-1.688a1.875 1.875 0
+                     112.652 2.652L10.582 16.07a4.5 4.5 0
+                     01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0
+                     011.13-1.897l8.932-8.931zm0
+                     0L19.5 7.125M18 14v4.75A2.25 2.25 0
+                     0115.75 21H5.25A2.25 2.25 0 013
+                     18.75V8.25A2.25 2.25 0 015.25 6H10"/>
+          </svg>
+          ✏️ Corregir valores
+        </button>
+
+        <!-- Confirmar sin cambios — habilita el PDF sin hacer PATCH -->
+        <button id="confirmBoletinBtn" class="btn btn-secondary"
+                type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" aria-hidden="true" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M4.5 12.75l6 6 9-13.5"/>
+          </svg>
+          ✅ Confirmar sin cambios
+        </button>
+
+        <button id="downloadPdfBtn" class="btn btn-primary"
+                type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" aria-hidden="true" width="18" height="18">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25
+                     2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0
+                     0L7.5 12m4.5 4.5V3"/>
+          </svg>
+          Descargar PDF
+        </button>
+
+      </div>
+    </section>
+
+
+    <!-- ──────────────────────────────────────────────────────
+         SECCIÓN 6 · EDITOR DE BOLETÍN
+         Interfaz dual: vista padre (read-only) + editor orientador
+         Todos los IDs usan prefijo "editor" para evitar colisiones.
+         Gestionado completamente por boletin.js → renderBoletinEditor()
+    ────────────────────────────────────────────────────────── -->
+    <section id="boletinEditorSection" class="app-section hidden">
+
+      <div class="section-header editor-section-header">
+        <!-- Tabs de navegación -->
+        <div class="editor-tabs" role="tablist" aria-label="Vista del boletín">
+          <button id="editorTabPadre" class="editor-tab active"
+                  role="tab" aria-selected="true" type="button">
+            📋 Boletín — vista del padre
+          </button>
+          <button id="editorTabOrientador" class="editor-tab"
+                  role="tab" aria-selected="false" type="button">
+            ✏️ Editor del orientador
+          </button>
+        </div>
+
+        <!-- Botón volver -->
+        <button id="editorBackBtn" class="btn btn-ghost editor-back-btn" type="button">
+          ← Volver al resumen
+        </button>
+      </div>
+
+      <div id="editorAlert" class="alert alert-info"
+           style="display:none" role="alert"></div>
+
+      <!-- ── TAB 1: VISTA PREVIA (read-only, visual) ── -->
+      <div id="editorViewPadre" class="editor-panel" role="tabpanel">
+
+        <!-- Header del estudiante -->
+        <div id="editorStudentHeader" class="editor-student-header">
+          <div class="editor-student-brand">
+            <span class="editor-brand-dot"></span>
+            <span class="editor-brand-label">KUMON</span>
+          </div>
+          <h2 id="editorStudentName" class="editor-student-name">—</h2>
+          <p  id="editorStudentMeta" class="editor-student-meta">—</p>
+          <p  id="editorStudentDates" class="editor-student-dates">—</p>
+
+          <!-- KPIs hero -->
+          <div id="editorKpiRow" class="editor-kpi-row"></div>
+        </div>
+
+        <!-- Punto de inicio -->
+        <div id="editorStartingPoint" class="editor-starting-point hidden">
+          <div class="editor-sp-icon">⭐</div>
+          <div class="editor-sp-body">
+            <p class="editor-sp-title">Por donde empezará</p>
+            <p id="editorSpDetail" class="editor-sp-detail">—</p>
+          </div>
+        </div>
+
+        <!-- Gráfica barras por sección cualitativa -->
+        <div class="editor-block-label">CÓMO LE FUE EN CADA PARTE DE LA PRUEBA</div>
+        <div id="editorSectionsChart" class="editor-sections-chart"></div>
+
+        <!-- Barras de hábitos de trabajo -->
+        <div class="editor-block-label">HÁBITOS DE TRABAJO OBSERVADOS</div>
+        <div id="editorHabitsBlock" class="editor-habits-block">
+          <p class="editor-habits-subtitle">Cómo trabaja cuando estudia</p>
+          <div id="editorHabitsBars" class="editor-habits-bars"></div>
+        </div>
+
+        <!-- Chips de comportamientos observados (auto_flags) -->
+        <div id="editorFlagsBlock" class="editor-flags-block hidden">
+          <div class="editor-block-label">COMPORTAMIENTOS OBSERVADOS DURANTE LA PRUEBA</div>
+          <div class="editor-flags-inner">
+            <p class="editor-flags-intro">Se observó lo siguiente mientras resolvía:</p>
+            <div id="editorFlagsChips" class="editor-flags-chips"></div>
+          </div>
+        </div>
+
+        <!-- Lo que observó el orientador -->
+        <div id="editorNarrativaBlock" class="editor-narrativa-block">
+          <div class="editor-block-label">LO QUE OBSERVÓ EL ORIENTADOR</div>
+          <div id="editorNarrativaText" class="editor-narrativa-text">—</div>
+        </div>
+
+        <!-- Semáforo de resultado -->
+        <div class="editor-block-label">SEMÁFORO DE RESULTADO</div>
+        <div id="editorSemaforoBlock" class="editor-semaforo-block">
+          <div id="editorSemaforoCircle" class="editor-semaforo-circle"></div>
+          <div class="editor-semaforo-info">
+            <p id="editorSemaforoLabel" class="editor-semaforo-label">—</p>
+            <p id="editorSemaforoDesc"  class="editor-semaforo-desc">—</p>
+          </div>
+        </div>
+
+      </div><!-- /editorViewPadre -->
+
+      <!-- ── TAB 2: EDITOR DEL ORIENTADOR (editable) ── -->
+      <div id="editorViewOrientador" class="editor-panel hidden" role="tabpanel">
+
+        <div class="editor-orientador-intro">
+          <p>Revisa y ajusta los valores antes de generar el PDF final.
+             Solo se guardan los campos que hayas modificado.</p>
+        </div>
+
+        <!-- Datos cuantitativos editables -->
+        <div class="editor-edit-section">
+          <h3 class="editor-edit-title">📊 Datos cuantitativos</h3>
+          <div id="editorCuantGrid" class="editor-edit-grid"></div>
+        </div>
+
+        <!-- Puntajes cualitativos editables por sección -->
+        <div class="editor-edit-section">
+          <h3 class="editor-edit-title">🧠 Hábitos de trabajo (puntaje por sección)</h3>
+          <div id="editorCualSliders" class="editor-cual-sliders"></div>
+        </div>
+
+        <!-- Narrativa editable -->
+        <div class="editor-edit-section">
+          <h3 class="editor-edit-title">📝 Narrativa del orientador</h3>
+          <div class="editor-edit-grid editor-edit-grid--full">
+            <div class="editor-edit-field">
+              <label class="editor-edit-label" for="editorRecommendation">
+                Recomendación pedagógica
+              </label>
+              <textarea id="editorRecommendation"
+                        class="form-input form-textarea editor-edit-input"
+                        rows="4"
+                        placeholder="Recomendación detallada del orientador..."></textarea>
+            </div>
+            <div class="editor-edit-field">
+              <label class="editor-edit-label" for="editorNarrativa">
+                Narrativa combinada
+              </label>
+              <textarea id="editorNarrativa"
+                        class="form-input form-textarea editor-edit-input"
+                        rows="3"
+                        placeholder="Narrativa del análisis combinado..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nombre orientador + guardar -->
+        <div class="editor-save-row">
+          <div class="editor-edit-field">
+            <label class="editor-edit-label" for="editorCorregidoPor">
+              Corregido por
+            </label>
+            <input id="editorCorregidoPor"
+                   class="form-input editor-edit-input"
+                   type="text"
+                   placeholder="Nombre del orientador"
+                   autocomplete="off" />
+          </div>
+          <button id="editorSaveBtn" class="btn btn-primary editor-save-btn" type="button">
+            💾 Guardar y generar PDF
+          </button>
+        </div>
+
+      </div><!-- /editorViewOrientador -->
+
+    </section>
+
+
+  </main>
+
+  <!-- ══════════════════════════════════════════════════════════
+       FOOTER
+  ══════════════════════════════════════════════════════════ -->
+  <footer class="app-footer">
+    <span>Kumon · Sistema de diagnóstico automatizado</span>
+  </footer>
+
+  <!-- Entry point ES Module -->
+  <script type="module" src="./js/app.js"></script>
+
+</body>
+</html>
