@@ -572,6 +572,51 @@
                     </form>
                 </div>
             </div>
+                    <!-- Modal: Registrar Nota -->
+        <div id="modalNota" class="modal-overlay">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Registrar Nota de Clase</h2>
+                    <button class="close-btn" onclick="cerrarModal('modalNota')"><i data-lucide="x"></i></button>
+                </div>
+                <form id="formNota" onsubmit="guardarNota(event)">
+                    <div class="form-group">
+                        <label>Estudiante</label>
+                        <select id="notaEstudiante" required>
+                            <option value="">Seleccionar estudiante...</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Materia</label>
+                            <select id="notaMateria" required>
+                                <option value="Mat">Matematicas</option>
+                                <option value="Esp">Espanol</option>
+                                <option value="Ing">Ingles</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Avance (1-5 estrellas)</label>
+                            <select id="notaEstrellas" required>
+                                <option value="1">1 Estrella</option>
+                                <option value="2">2 Estrellas</option>
+                                <option value="3" selected>3 Estrellas</option>
+                                <option value="4">4 Estrellas</option>
+                                <option value="5">5 Estrellas</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Observacion</label>
+                        <textarea id="notaObservacion" rows="3" required style="width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;resize:vertical;"></textarea>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:10px;">
+                        <button type="button" class="btn" onclick="cerrarModal('modalNota')">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar Nota</button>
+                    </div>
+                </form>
+            </div>
+        </div>
             <!-- END MODALS -->
             <main id="mainContent">
                 <!-- Vistas inyectadas por JS -->
@@ -656,6 +701,53 @@ async function guardarProfesor(e) {
         // --- FIN LOGIC MODALS ---
     
         // -------------------------
+        
+        async function guardarNota(e) {
+            e.preventDefault();
+            const id_estudiante = document.getElementById('notaEstudiante').value;
+            const materia = document.getElementById('notaMateria').value;
+            const estrellas = parseInt(document.getElementById('notaEstrellas').value);
+            const observacion = document.getElementById('notaObservacion').value;
+            if (!id_estudiante) { alert('Selecciona un estudiante'); return; }
+            const payload = { id_estudiante: parseInt(id_estudiante), materia, estrellas, observacion };
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/notas`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    cerrarModal('modalNota');
+                    document.getElementById('formNota').reset();
+                    renderNotas(document.getElementById('mainContent'));
+                    alert('Nota registrada exitosamente');
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + (err.detail || 'No se pudo registrar la nota'));
+                }
+            } catch(ex) {
+                console.error('Error guardando nota:', ex);
+                alert('Error de conexion con el servidor');
+            }
+        }
+
+        async function cargarEstudiantesEnModal(selectId) {
+            const sel = document.getElementById(selectId);
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/estudiantes`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const opts = data.map(e => `<option value="${e.id_estudiante}">${e.nombres} ${e.apellidos}</option>`).join('');
+                    sel.innerHTML = '<option value="">Seleccionar estudiante...</option>' + opts;
+                }
+            } catch(ex) { console.error('Error cargando estudiantes para modal:', ex); }
+        }
+
+        const _origAbrirModal = abrirModal;
+        abrirModal = function(id) {
+            _origAbrirModal(id);
+            if (id === 'modalNota') cargarEstudiantesEnModal('notaEstudiante');
+        };
         // ESTADO Y DATOS DEMO
         // -------------------------
         const API_BASE = 'http://localhost:8000';  // ← CONFIGURABLE AQUÍ
@@ -921,7 +1013,7 @@ async function guardarProfesor(e) {
         // -------------------------
         // AUTHENTICATION
         // -------------------------
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('loginEmail').value;
             const pass = document.getElementById('loginPassword').value;
@@ -929,10 +1021,6 @@ async function guardarProfesor(e) {
 
             if (role === 'admin' && email === 'admin@kumon.com' && pass === 'admin123') {
                 login({ name: 'Administrador', email, role: 'admin' });
-            } else if (role === 'profesor') {
-                const prof = DEMO_DATA.profesores.find(p => p.email === email && p.pass === pass);
-                if (prof) {
-                    login({ name: prof.nombre, email, role: 'profesor' });
                 } else if (role === 'profesor') {
                 // Verificar credenciales via API
                 try {
@@ -1301,7 +1389,7 @@ async         function renderNotas(container) {
             container.innerHTML = `
                 <div class="view-header">
                     <h2 class="view-title">Notas de Clase</h2>
-                    <button class="btn btn-primary"><i data-lucide="pen-tool"></i> Registrar Nota</button>
+                    <button class="btn btn-primary" onclick="abrirModal('modalNota')"><i data-lucide="pen-tool"></i> Registrar Nota</button>
                 </div>
                 <div class="table-container">
                     <table>
