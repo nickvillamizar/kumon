@@ -711,7 +711,7 @@ async function guardarProfesor(e) {
             if (!id_estudiante) { alert('Selecciona un estudiante'); return; }
             const payload = { id_estudiante: parseInt(id_estudiante), materia, estrellas, observacion };
             try {
-                const res = await fetch(`${API_BASE}/api/v1/notas`, {
+                const res = await fetch(`${API_BASE}/api/v1/notas/por-estudiante`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -1366,9 +1366,9 @@ async         function renderNotas(container) {
                 const res = await fetch(`${API_BASE}/api/v1/notas`);
                 if (res.ok) {
                     const data = await res.json();
-                    notas = data.map(n => ({
+                    notas = (data.items || data).map(n => ({
                         fecha: n.fecha ? n.fecha.substring(0,10) : '',
-                        estudiante: (n.nombres || '') + ' ' + (n.apellidos || ''),
+                        notas = (datestudiante: n.estudiante || (n.nombres || '') + ' ' + (n.apellidos || '')a.items || data).map,
                         materia: n.materia || '',
                         estrellas: n.estrellas || 0,
                         observacion: n.observacion || ''
