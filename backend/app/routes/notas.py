@@ -172,3 +172,59 @@ async def crear_nota(
         observacion=nueva_nota["observacion"],
         estrellas=nueva_nota["estrellas"],
     )
+
+
+# ==============================================================
+# POST /api/v1/notas/por-estudiante
+# Crea una nota de clase directamente con id_estudiante
+# ==============================================================
+class NotaPorEstudianteCreate(BaseModel):
+    id_estudiante: int
+    materia: str
+    estrellas: int = 3
+    observacion: str
+
+@router.post("/por-estudiante", status_code=201, summary="Crear nota por id_estudiante")
+def crear_nota_por_estudiante(
+    body: NotaPorEstudianteCreate,
+    db: Session = Depends(get_db),
+):
+    import json as _json
+    from datetime import date
+    # Buscar el TestResult mas reciente del estudiante
+    tr = db.query(TestResult).filter(
+        TestResult.id_estudiante == body.id_estudiante
+    ).order_by(TestResult.created_at.desc()).first()
+    if not tr:
+        raise HTTPException(status_code=404, detail="No hay resultados para este estudiante")
+    # Leer notas existentes
+    raw = tr.raw_ocr_data or {}
+    notas = raw.get("notas_profesor", [])
+    if not isinstance(notas, list):
+        notas = []
+    nueva_nota = {
+        "idx": len(notas),
+        "fecha": date.today().isoformat(),
+        "materia": body.materia,
+        "estrellas": body.estrellas,
+        "observacion": body.observacion,
+        "profesor_nombre": "Profesor"
+    }
+    notas.append(nueva_nota)
+    raw["notas_profesor"] = notas
+    tr.raw_ocr_data = raw
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(tr, "raw_ocr_data")
+    db.commit()
+    # Obtener nombre del estudiante
+    est = db.query(Student).filter(Student.id_estudiante == body.id_estudiante).first()
+    nombre_est = est.nombre_completo if est else "Desconocido"
+    return {
+        "id_nota": str(tr.id_result) + "_" + str(nueva_nota["idx"]),
+        "fecha": nueva_nota["fecha"],
+        "estudiante": nombre_est,
+        "materia": body.materia,
+        "estrellas": body.estrellas,
+        "observacion": body.observacion,
+        "profesor_nombre": "Profesor"
+    }
