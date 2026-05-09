@@ -1677,5 +1677,84 @@ function verDetalleHorario(id) {
     </form>
   </div>
 </div>
+<script>
+// ==== PATCH v2: funciones corregidas con campos reales de la API ====
+async function editarEstudiante(id) {
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/estudiantes/${id}`);
+    if (!r.ok) throw new Error('Error al obtener estudiante');
+    const e = await r.json();
+    document.getElementById('editEstId').value = e.id_estudiante;
+    const partes = (e.nombre_completo || '').split(' ');
+    document.getElementById('editEstNombre').value = partes[0] || '';
+    document.getElementById('editEstApellido').value = partes.slice(1).join(' ') || '';
+    document.getElementById('editEstEmail').value = e.email || '';
+    document.getElementById('editEstTelefono').value = e.telefono_contacto || '';
+    document.getElementById('editEstNivel').value = e.grado_escolar || '';
+    document.getElementById('modalEditEstudiante').classList.add('active');
+  } catch(err) { alert('Error al cargar estudiante: ' + err.message); }
+}
+async function guardarEditEstudiante(ev) {
+  ev.preventDefault();
+  const id = document.getElementById('editEstId').value;
+  const nombre = document.getElementById('editEstNombre').value.trim();
+  const apellidoFull = document.getElementById('editEstApellido').value.trim();
+  const ap = apellidoFull.split(' ');
+  const data = { primer_nombre: nombre, primer_apellido: ap[0]||'', segundo_apellido: ap[1]||'', email: document.getElementById('editEstEmail').value, telefono_contacto: document.getElementById('editEstTelefono').value, grado_escolar: document.getElementById('editEstNivel').value };
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/estudiantes/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+    if (!r.ok) throw new Error(await r.text());
+    document.getElementById('modalEditEstudiante').classList.remove('active');
+    if(typeof cargarEstudiantes==='function') cargarEstudiantes();
+    alert('Estudiante actualizado correctamente');
+  } catch(err) { alert('Error al actualizar: ' + err.message); }
+}
+async function editarProfesor(id) {
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/profesores/${id}`);
+    if (!r.ok) throw new Error('Error al obtener profesor');
+    const p = await r.json();
+    document.getElementById('editProfId').value = p.id_usuario;
+    document.getElementById('editProfNombre').value = p.nombre_completo || '';
+    document.getElementById('editProfApellido').value = '';
+    document.getElementById('editProfEmail').value = p.email || '';
+    document.getElementById('editProfTelefono').value = '';
+    document.getElementById('editProfEspecialidad').value = (p.materias||[]).join(', ');
+    document.getElementById('modalEditProfesor').classList.add('active');
+  } catch(err) { alert('Error al cargar profesor: ' + err.message); }
+}
+async function guardarEditProfesor(ev) {
+  ev.preventDefault();
+  const id = document.getElementById('editProfId').value;
+  const nombre = document.getElementById('editProfNombre').value.trim();
+  const esp = document.getElementById('editProfEspecialidad').value.trim();
+  const materias = esp ? esp.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  const data = { nombre_completo: nombre, email: document.getElementById('editProfEmail').value, materias, activo: true };
+  try {
+    const r = await fetch(`${API_BASE}/api/v1/profesores/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+    if (!r.ok) throw new Error(await r.text());
+    document.getElementById('modalEditProfesor').classList.remove('active');
+    if(typeof cargarProfesores==='function') cargarProfesores();
+    alert('Profesor actualizado correctamente');
+  } catch(err) { alert('Error al actualizar: ' + err.message); }
+}
+async function cargarSelectsHorario() {
+  try {
+    const [estR, profR] = await Promise.all([fetch(`${API_BASE}/api/v1/estudiantes`), fetch(`${API_BASE}/api/v1/profesores`)]);
+    const estData = await estR.json(); const profData = await profR.json();
+    const estList = estData.items||estData||[]; const profList = profData.items||profData||[];
+    const selEst = document.getElementById('horarioEstudiante');
+    const selProf = document.getElementById('horarioProfesor');
+    if(selEst){ selEst.innerHTML='<option value="">Seleccionar estudiante...</option>'; estList.forEach(e=>{ selEst.innerHTML+=`<option value="${e.id_estudiante}">${e.nombre_completo}</option>`; }); }
+    if(selProf){ selProf.innerHTML='<option value="">Seleccionar profesor...</option>'; profList.forEach(p=>{ selProf.innerHTML+=`<option value="${p.id_usuario}">${p.nombre_completo}</option>`; }); }
+  } catch(err) { console.error('Error cargando selects:', err); }
+}
+document.addEventListener('DOMContentLoaded', function() {
+  const btn = document.querySelector('[onclick*="modalHorario"]');
+  if(btn){ const orig = btn.getAttribute('onclick'); btn.setAttribute('onclick', `cargarSelectsHorario();${orig}`); }
+  const navH = document.getElementById('nav-horario');
+  if(navH){ navH.addEventListener('click', ()=>{ if(typeof cargarHorarios==='function') cargarHorarios(); }); }
+});
+</script>
 </body>
 </html>
