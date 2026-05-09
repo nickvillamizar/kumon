@@ -10,23 +10,31 @@ import hashlib
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from config.database import get_db
 from database.models import Usuario, Role, Student, ProcessingJob
 
 router = APIRouter(prefix="/api/v1/profesores", tags=["profesores"])
 
-
 # =============================================================
 # SCHEMAS
 # =============================================================
 
 class ProfesorCreate(BaseModel):
-    nombre_completo: str
+    nombre_completo: Optional[str] = None
+    nombre: Optional[str] = None   # alias del frontend
     email: str
     password: str = "prof123"
     materias: Optional[List[str]] = []
+
+    @model_validator(mode='after')
+    def resolve_nombre(self):
+        if not self.nombre_completo and self.nombre:
+            self.nombre_completo = self.nombre
+        if not self.nombre_completo:
+            self.nombre_completo = 'Sin nombre'
+        return self
 
 
 class ProfesorUpdate(BaseModel):
@@ -61,7 +69,7 @@ class LoginBody(BaseModel):
 # HELPERS
 # =============================================================
 
-ROL_PROFESOR = 2  # id_rol para profesores/orientadores
+ROL_PROFESOR = 2
 
 
 def _hash(pw: str) -> str:
@@ -69,25 +77,12 @@ def _hash(pw: str) -> str:
 
 
 def _build_response(u: Usuario, db: Session) -> ProfesorResponse:
-    import json
-    extra: dict = {}
-    try:
-        if u.email_verificado is not None:  # campo existente como proxy
-            pass
-    except Exception:
-        pass
-    # Materias guardadas en campo direccion del usuario via JSON hack
-    materias: List[str] = []
-    # Contar estudiantes asignados a este profesor
     prof_nombre = f"{u.primer_nombre} {u.primer_apellido}".strip()
-    total_est = db.query(Student).filter(
-        Student.estado == "activo"
-    ).count()  # simplificado: contar todos activos hasta tener FK real
     return ProfesorResponse(
         id_usuario=u.id_usuario,
         nombre_completo=prof_nombre,
         email=u.email,
-        materias=materias,
+        materias=[],
         activo=u.activo,
         total_estudiantes=0,
     )
