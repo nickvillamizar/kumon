@@ -56,6 +56,7 @@ def initialize_ocr_reader() -> None:
     """
     Inicializa EasyOCR con español e inglés.
     Llamar SOLO desde app.on_event("startup").
+    Si falla, simplemente log y continúa (fallback para desarrollo).
     """
     global _ocr_reader
     if _ocr_reader is not None:
@@ -69,19 +70,22 @@ def initialize_ocr_reader() -> None:
             gpu=False,
             verbose=False,
         )
-        logger.info("EasyOCR inicializado correctamente.")
+        logger.info("✓ EasyOCR inicializado correctamente.")
+    except ImportError as e:
+        logger.warning(f"⚠ EasyOCR no instalado: {e}")
+        logger.info("  Continuando sin OCR (solo para desarrollo)")
+        _ocr_reader = None
     except Exception as e:
-        logger.error(f"Error inicializando EasyOCR: {e}")
-        raise
+        logger.warning(f"⚠ Error inicializando EasyOCR: {e}")
+        logger.info("  Continuando sin OCR (solo para desarrollo)")
+        _ocr_reader = None
 
 
 def get_ocr_reader():
-    """Retorna la instancia global de EasyOCR."""
-    if _ocr_reader is None:
-        raise RuntimeError(
-            "EasyOCR no está inicializado. "
-            "Verificar que initialize_ocr_reader() se llamó en startup."
-        )
+    """
+    Retorna la instancia global de EasyOCR.
+    Retorna None si no está disponible (para desarrollo).
+    """
     return _ocr_reader
 
 
