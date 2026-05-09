@@ -1,11 +1,10 @@
 """
 app/routes/notas.py
-CRUD de notas de clase (observaciones del profesor).
-Se almacenan en ObservacionCualitativa que ya existe en el modelo.
+CRUD de notas de clase del profesor.
 """
 from __future__ import annotations
 from uuid import UUID
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,7 +16,6 @@ from database.models import TestResult, Student, Prospecto
 
 router = APIRouter(prefix="/api/v1/notas", tags=["notas"])
 
-
 # ════════════════════════════════════════════════════════
 # SCHEMAS
 # ════════════════════════════════════════════════════════
@@ -27,7 +25,6 @@ class NotaCreate(BaseModel):
     profesor_nombre: str
     observacion: str
     estrellas: int = 5
-
 
 class NotaResponse(BaseModel):
     id_nota: str
@@ -40,113 +37,21 @@ class NotaResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
-
 class NotasListResponse(BaseModel):
     total: int
     items: List[NotaResponse]
 
+class NotaPorEstudianteCreate(BaseModel):
+    id_estudiante: str   # UUID como string
+    materia: str
+    estrellas: int = 3
+    observacion: str
 
 # ════════════════════════════════════════════════════════
-# GET /api/v1/notas
-# Devuelve notas desde el campo recommendation de TestResult
-# y observaciones en el campo raw_ocr_data["notas_profesor"]
+# HELPERS
 # ════════════════════════════════════════════════════════
 
-@router.get("/", response_model=NotasListResponse, summary="Listar notas de clase")
-async def listar_notas(
-    profesor_nombre: Optional[str] = None,
-    db: Session = Depends(get_db),
-) -> NotasListResponse:
-    """
-    Devuelve notas de clase guardadas en TestResult.raw_ocr_data["notas_profesor"].
-    Si no hay notas aún, retorna lista vacía.
-    """
-    resultados = db.query(TestResult).order_by(TestResult.created_at.desc()).all()
-
-    items = []
-    for r in resultados:
-        # Extraer notas guardadas por el profesor en el JSON
-        notas_raw = []
-        if r.raw_ocr_data and isinstance(r.raw_ocr_data, dict):
-            notas_raw = r.raw_ocr_data.get("notas_profesor", [])
-
-        for nota in notas_raw:
-            if profesor_nombre and nota.get("profesor_nombre") != profesor_nombre:
-                continue
-
-            # Obtener nombre del estudiante
-            nombre_estudiante = "Desconocido"
-            if r.id_estudiante:
-                est = db.query(Student).filter(
-                    Student.id_estudiante == r.id_estudiante
-                ).first()
-                if est:
-                    nombre_estudiante = est.nombre_completo
-            elif r.id_prospecto:
-                prosp = db.query(Prospecto).filter(
-                    Prospecto.id_prospecto == r.id_prospecto
-                ).first()
-                if prosp:
-                    nombre_estudiante = prosp.nombre_completo
-
-            # Materia desde template
-            materia = None
-            if r.template:
-                materia = r.template.subject
-
-            items.append(NotaResponse(
-                id_nota=str(r.id_result) + "_" + str(nota.get("idx", 0)),
-                fecha=nota.get("fecha", r.created_at.strftime("%Y-%m-%d")),
-                estudiante=nombre_estudiante,
-                materia=materia,
-                profesor_nombre=nota.get("profesor_nombre", ""),
-                observacion=nota.get("observacion", ""),
-                estrellas=nota.get("estrellas", 5),
-            ))
-
-    return NotasListResponse(total=len(items), items=items)
-
-
-# ════════════════════════════════════════════════════════
-# POST /api/v1/notas
-# Guarda una nota en raw_ocr_data["notas_profesor"] del TestResult
-# ════════════════════════════════════════════════════════
-
-@router.post("/", response_model=NotaResponse, status_code=201, summary="Crear nota de clase")
-async def crear_nota(
-    body: NotaCreate,
-    db: Session = Depends(get_db),
-) -> NotaResponse:
-    """
-    Agrega una nota de clase al TestResult especificado.
-    Las notas se guardan en raw_ocr_data["notas_profesor"] como lista.
-    """
-    r = db.query(TestResult).filter(TestResult.id_result == body.id_result).first()
-    if not r:
-        raise HTTPException(status_code=404, detail="Resultado de test no encontrado")
-
-    # Inicializar raw_ocr_data si es None
-    if r.raw_ocr_data is None:
-        r.raw_ocr_data = {}
-
-    notas_existentes = r.raw_ocr_data.get("notas_profesor", [])
-    nueva_nota = {
-        "idx": len(notas_existentes),
-        "fecha": datetime.now().strftime("%Y-%m-%d"),
-        "profesor_nombre": body.profesor_nombre,
-        "observacion": body.observacion,
-        "estrellas": body.estrellas,
-    }
-    notas_existentes.append(nueva_nota)
-
-    # Actualizar el campo usando merge para forzar el update del JSONB
-    from sqlalchemy.orm.attributes import flag_modified
-    r.raw_ocr_data["notas_profesor"] = notas_existentes
-    flag_modified(r, "raw_ocr_data")
-    db.commit()
-    db.refresh(r)
-
-    # Obtener nombre del estudiante
+def _build_nota_response(r: TestResult, nota: dict, db: Session) -> NotaResponse:
     nombre_estudiante = "Desconocido"
     if r.id_estudiante:
         est = db.query(Student).filter(
@@ -164,44 +69,115 @@ async def crear_nota(
     materia = r.template.subject if r.template else None
 
     return NotaResponse(
-        id_nota=str(r.id_result) + "_" + str(nueva_nota["idx"]),
-        fecha=nueva_nota["fecha"],
+        id_nota=str(r.id_result) + "_" + str(nota["idx"]),
+        fecha=nota["fecha"],
         estudiante=nombre_estudiante,
-        materia=materia,
-        profesor_nombre=nueva_nota["profesor_nombre"],
-        observacion=nueva_nota["observacion"],
-        estrellas=nueva_nota["estrellas"],
+        materia=nota.get("materia") or materia,
+        profesor_nombre=nota["profesor_nombre"],
+        observacion=nota["observacion"],
+        estrellas=nota["estrellas"],
     )
 
+# ════════════════════════════════════════════════════════
+# GET /api/v1/notas
+# ════════════════════════════════════════════════════════
+@router.get("/", response_model=NotasListResponse, summary="Listar notas de clase")
+def listar_notas(
+    profesor_nombre: Optional[str] = None,
+    db: Session = Depends(get_db),
+) -> NotasListResponse:
+    resultados = db.query(TestResult).filter(
+        TestResult.raw_ocr_data.isnot(None)
+    ).all()
 
-# ==============================================================
+    items = []
+    for r in resultados:
+        raw = r.raw_ocr_data or {}
+        notas = raw.get("notas_profesor", [])
+        if not isinstance(notas, list):
+            continue
+        for nota in notas:
+            if not isinstance(nota, dict):
+                continue
+            if profesor_nombre and nota.get("profesor_nombre") != profesor_nombre:
+                continue
+            try:
+                items.append(_build_nota_response(r, nota, db))
+            except Exception:
+                continue
+
+    return NotasListResponse(total=len(items), items=items)
+
+# ════════════════════════════════════════════════════════
+# POST /api/v1/notas
+# ════════════════════════════════════════════════════════
+@router.post("/", response_model=NotaResponse, status_code=201, summary="Crear nota via id_result")
+def crear_nota(
+    body: NotaCreate,
+    db: Session = Depends(get_db),
+) -> NotaResponse:
+    r = db.query(TestResult).filter(TestResult.id_result == body.id_result).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="TestResult no encontrado")
+
+    raw = r.raw_ocr_data or {}
+    notas = raw.get("notas_profesor", [])
+    if not isinstance(notas, list):
+        notas = []
+
+    nueva_nota = {
+        "idx": len(notas),
+        "fecha": date.today().isoformat(),
+        "materia": None,
+        "profesor_nombre": body.profesor_nombre,
+        "observacion": body.observacion,
+        "estrellas": body.estrellas,
+    }
+    notas.append(nueva_nota)
+    raw["notas_profesor"] = notas
+    r.raw_ocr_data = raw
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(r, "raw_ocr_data")
+    db.commit()
+    return _build_nota_response(r, nueva_nota, db)
+
+# ════════════════════════════════════════════════════════
 # POST /api/v1/notas/por-estudiante
-# Crea una nota de clase directamente con id_estudiante
-# ==============================================================
-class NotaPorEstudianteCreate(BaseModel):
-    id_estudiante: int
-    materia: str
-    estrellas: int = 3
-    observacion: str
-
-@router.post("/por-estudiante", status_code=201, summary="Crear nota por id_estudiante")
+# Crear nota directamente con UUID del estudiante
+# ════════════════════════════════════════════════════════
+@router.post("/por-estudiante", status_code=201, summary="Crear nota por id_estudiante (UUID)")
 def crear_nota_por_estudiante(
     body: NotaPorEstudianteCreate,
     db: Session = Depends(get_db),
 ):
-    import json as _json
-    from datetime import date
+    # Convertir string a UUID
+    try:
+        estudiante_uuid = UUID(body.id_estudiante)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="id_estudiante debe ser un UUID valido")
+
+    # Verificar que el estudiante existe
+    est = db.query(Student).filter(Student.id_estudiante == estudiante_uuid).first()
+    if not est:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
+
     # Buscar el TestResult mas reciente del estudiante
     tr = db.query(TestResult).filter(
-        TestResult.id_estudiante == body.id_estudiante
+        TestResult.id_estudiante == estudiante_uuid
     ).order_by(TestResult.created_at.desc()).first()
+
     if not tr:
-        raise HTTPException(status_code=404, detail="No hay resultados para este estudiante")
+        raise HTTPException(
+            status_code=404,
+            detail="Este estudiante no tiene diagnosticos aun. Crea un diagnostico primero."
+        )
+
     # Leer notas existentes
     raw = tr.raw_ocr_data or {}
     notas = raw.get("notas_profesor", [])
     if not isinstance(notas, list):
         notas = []
+
     nueva_nota = {
         "idx": len(notas),
         "fecha": date.today().isoformat(),
@@ -216,13 +192,11 @@ def crear_nota_por_estudiante(
     from sqlalchemy.orm.attributes import flag_modified
     flag_modified(tr, "raw_ocr_data")
     db.commit()
-    # Obtener nombre del estudiante
-    est = db.query(Student).filter(Student.id_estudiante == body.id_estudiante).first()
-    nombre_est = est.nombre_completo if est else "Desconocido"
+
     return {
         "id_nota": str(tr.id_result) + "_" + str(nueva_nota["idx"]),
         "fecha": nueva_nota["fecha"],
-        "estudiante": nombre_est,
+        "estudiante": est.nombre_completo,
         "materia": body.materia,
         "estrellas": body.estrellas,
         "observacion": body.observacion,
