@@ -10,13 +10,15 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from config.database import get_db
 from database.models import Student, Role, Usuario, ProcessingJob, TestResult
 
-router = APIRouter(prefix="/api/v1/estudiantes", tags=["estudiantes"])
-
+router = APIRouter(
+    prefix="/api/v1/estudiantes",
+    tags=["estudiantes"]
+)
 
 # ════════════════════════════════════════════════════════
 # SCHEMAS
@@ -30,9 +32,12 @@ class HorarioItem(BaseModel):
 
 
 class EstudianteCreate(BaseModel):
-    primer_nombre: str
+    # Acepta tanto primer_nombre/primer_apellido como nombres/apellidos (alias frontend)
+    primer_nombre: Optional[str] = None
+    nombres: Optional[str] = None          # alias del frontend
     segundo_nombre: Optional[str] = None
-    primer_apellido: str
+    primer_apellido: Optional[str] = None
+    apellidos: Optional[str] = None        # alias del frontend
     segundo_apellido: Optional[str] = None
     numero_documento: Optional[str] = None
     tipo_documento: Optional[str] = "CC"
@@ -48,10 +53,32 @@ class EstudianteCreate(BaseModel):
     profesor_nombre: Optional[str] = None
     horario: Optional[List[HorarioItem]] = []
 
+    @model_validator(mode='after')
+    def resolve_names(self):
+        # Si llega nombres en lugar de primer_nombre, dividir y asignar
+        if not self.primer_nombre and self.nombres:
+            parts = self.nombres.strip().split()
+            self.primer_nombre = parts[0] if parts else self.nombres
+            if len(parts) > 1 and not self.segundo_nombre:
+                self.segundo_nombre = ' '.join(parts[1:])
+        # Si llega apellidos en lugar de primer_apellido, dividir y asignar
+        if not self.primer_apellido and self.apellidos:
+            parts = self.apellidos.strip().split()
+            self.primer_apellido = parts[0] if parts else self.apellidos
+            if len(parts) > 1 and not self.segundo_apellido:
+                self.segundo_apellido = ' '.join(parts[1:])
+        # Garantizar valores por defecto
+        if not self.primer_nombre:
+            self.primer_nombre = 'Sin nombre'
+        if not self.primer_apellido:
+            self.primer_apellido = 'Sin apellido'
+        return self
+
 
 class EstudianteUpdate(BaseModel):
     primer_nombre: Optional[str] = None
     primer_apellido: Optional[str] = None
+    segundo_apellido: Optional[str] = None
     email: Optional[str] = None
     grado_escolar: Optional[str] = None
     institucion_origen: Optional[str] = None
@@ -96,13 +123,11 @@ class HorarioUpdate(BaseModel):
 
 def _build_response(estudiante: Student, db: Session) -> EstudianteResponse:
     """Construye la respuesta enriquecida para un estudiante."""
-    # Contar diagnosticos
     total_diag = (
         db.query(func.count(ProcessingJob.id_job))
         .filter(ProcessingJob.id_estudiante == estudiante.id_estudiante)
         .scalar() or 0
     )
-    # Ultimo semaforo
     ultimo_result = (
         db.query(TestResult)
         .filter(TestResult.id_estudiante == estudiante.id_estudiante)
@@ -111,9 +136,6 @@ def _build_response(estudiante: Student, db: Session) -> EstudianteResponse:
     )
     ultimo_semaforo = ultimo_result.semaforo if ultimo_result else None
 
-    # Materias y horario se guardan en el campo extra_data del modelo
-    # Como el modelo no tiene columnas materias/horario/profesor_nombre
-    # usamos los campos disponibles y un JSON en direccion (temporal)
     import json
     extra = {}
     if estudiante.direccion and estudiante.direccion.startswith('{'):
@@ -148,19 +170,17 @@ def _build_response(estudiante: Student, db: Session) -> EstudianteResponse:
 # ════════════════════════════════════════════════════════
 # GET /api/v1/estudiantes
 # ════════════════════════════════════════════════════════
+
 @router.get("/", response_model=EstudiantesListResponse, summary="Listar estudiantes")
 async def listar_estudiantes(
     profesor_nombre: Optional[str] = None,
     estado: Optional[str] = "activo",
     db: Session = Depends(get_db),
 ) -> EstudiantesListResponse:
-    """Devuelve lista de estudiantes. Si profesor_nombre se filtra por ese profesor."""
     query = db.query(Student)
     if estado:
         query = query.filter(Student.estado == estado)
     estudiantes = query.order_by(Student.primer_apellido).all()
-
-    # Filtrar por profesor si aplica
     if profesor_nombre:
         import json
         filtrados = []
@@ -174,7 +194,6 @@ async def listar_estudiantes(
             if extra.get('profesor_nombre') == profesor_nombre:
                 filtrados.append(e)
         estudiantes = filtrados
-
     items = [_build_response(e, db) for e in estudiantes]
     return EstudiantesListResponse(total=len(items), items=items)
 
@@ -182,6 +201,7 @@ async def listar_estudiantes(
 # ════════════════════════════════════════════════════════
 # GET /api/v1/estudiantes/{id}
 # ════════════════════════════════════════════════════════
+
 @router.get("/{id_estudiante}", response_model=EstudianteResponse, summary="Detalle estudiante")
 async def get_estudiante(
     id_estudiante: UUID,
@@ -196,13 +216,13 @@ async def get_estudiante(
 # ════════════════════════════════════════════════════════
 # POST /api/v1/estudiantes
 # ════════════════════════════════════════════════════════
+
 @router.post("/", response_model=EstudianteResponse, status_code=201, summary="Crear estudiante")
 async def crear_estudiante(
     body: EstudianteCreate,
     db: Session = Depends(get_db),
 ) -> EstudianteResponse:
     import json
-    # Guardar materias, horario y profesor en direccion como JSON
     extra = {
         'materias': body.materias,
         'profesor_nombre': body.profesor_nombre,
@@ -235,6 +255,7 @@ async def crear_estudiante(
 # ════════════════════════════════════════════════════════
 # PUT /api/v1/estudiantes/{id}
 # ════════════════════════════════════════════════════════
+
 @router.put("/{id_estudiante}", response_model=EstudianteResponse, summary="Actualizar estudiante")
 async def actualizar_estudiante(
     id_estudiante: UUID,
@@ -245,19 +266,18 @@ async def actualizar_estudiante(
     e = db.query(Student).filter(Student.id_estudiante == id_estudiante).first()
     if not e:
         raise HTTPException(status_code=404, detail="Estudiante no encontrado")
-
-    # Leer extra existente
     extra = {}
     if e.direccion and e.direccion.startswith('{'):
         try:
             extra = json.loads(e.direccion)
         except Exception:
             pass
-
     if body.primer_nombre is not None:
         e.primer_nombre = body.primer_nombre
     if body.primer_apellido is not None:
         e.primer_apellido = body.primer_apellido
+    if body.segundo_apellido is not None:
+        e.segundo_apellido = body.segundo_apellido
     if body.email is not None:
         e.email = body.email
     if body.grado_escolar is not None:
@@ -274,7 +294,6 @@ async def actualizar_estudiante(
         extra['profesor_nombre'] = body.profesor_nombre
     if body.horario is not None:
         extra['horario'] = [h.model_dump() for h in body.horario]
-
     e.direccion = json.dumps(extra, ensure_ascii=False)
     db.commit()
     db.refresh(e)
@@ -284,6 +303,7 @@ async def actualizar_estudiante(
 # ════════════════════════════════════════════════════════
 # DELETE /api/v1/estudiantes/{id}
 # ════════════════════════════════════════════════════════
+
 @router.delete("/{id_estudiante}", status_code=204, summary="Desactivar estudiante")
 async def desactivar_estudiante(
     id_estudiante: UUID,
@@ -300,6 +320,7 @@ async def desactivar_estudiante(
 # ════════════════════════════════════════════════════════
 # PUT /api/v1/estudiantes/{id}/horario
 # ════════════════════════════════════════════════════════
+
 @router.put("/{id_estudiante}/horario", response_model=EstudianteResponse, summary="Actualizar horario")
 async def actualizar_horario(
     id_estudiante: UUID,
@@ -310,14 +331,12 @@ async def actualizar_horario(
     e = db.query(Student).filter(Student.id_estudiante == id_estudiante).first()
     if not e:
         raise HTTPException(status_code=404, detail="Estudiante no encontrado")
-
     extra = {}
     if e.direccion and e.direccion.startswith('{'):
         try:
             extra = json.loads(e.direccion)
         except Exception:
             pass
-
     extra['horario'] = [h.model_dump() for h in body.horario]
     e.direccion = json.dumps(extra, ensure_ascii=False)
     db.commit()
