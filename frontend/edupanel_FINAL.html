@@ -1891,5 +1891,35 @@ async function cargarProfesores() {
   if(mc) await renderProfesores(mc);
 }
 </script>
+    <script>
+        // ===== PATCH v4: cargarProfesoresEnModal + fixes =====
+        async function cargarProfesoresEnModal(selectId) {
+              var sel = document.getElementById(selectId);
+          if (!sel) return;
+                try {
+                        var res = await fetch(API_BASE + '/api/v1/profesores');
+                        if (res.ok) {
+                                  var data = await res.json();
+                                  var items = Array.isArray(data) ? data : (data.items || []);
+                                  var opts = items.map(function(p) {
+                                              return '<option value="' + p.nombre_completo + '">' + p.nombre_completo + '</option>';
+                                            }).join('');
+                                  sel.innerHTML = '<option value="">Seleccionar profesor...</option>' + opts;
+                                }
+                              } catch(ex) {
+                        console.error('Error cargando profesores en modal:', ex);
+                      }
+                    }
+        // Override abrirModal to load professors when student modal opens
+        (function() {
+          var _origOpen = window.abrirModal;
+          window.abrirModal = function(id) {
+            if (typeof _origOpen === 'function') _origOpen(id);
+            if (id === 'modalEstudiante') {
+              cargarProfesoresEnModal('estProfesor');
+            }
+          };
+        })();
+        </script>
 </body>
 </html>
