@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 from app.routes import upload, jobs, results, cuestionario, dashboard
-from app.routes import estudiantes, profesores, notas
+from app.routes import estudiantes, profesores, notas, horarios
 from app.services.ocr_service import initialize_ocr_reader
 import ssl
 import certifi
@@ -116,6 +116,7 @@ app.include_router(dashboard.router)
 app.include_router(estudiantes.router)
 app.include_router(profesores.router)
 app.include_router(notas.router)
+app.include_router(horarios.router)
 
 # ================================================================
 # HEALTH CHECK
