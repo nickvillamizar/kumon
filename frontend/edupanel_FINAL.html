@@ -1921,5 +1921,54 @@ async function cargarProfesores() {
           };
         })();
         </script>
+    <script>
+        // ===== PATCH v5: fix cargarEstudiantesEnModal nombre_completo + guardarNota UUID =====
+        // Fix 1: cargarEstudiantesEnModal - usar nombre_completo en lugar de nombres/apellidos
+        cargarEstudiantesEnModal = async function(selectId) {
+              var sel = document.getElementById(selectId);
+              if (!sel) return;
+                    try {
+                            var res = await fetch(API_BASE + '/api/v1/estudiantes');
+                            if (res.ok) {
+                                      var data = await res.json();
+                                      var lista = Array.isArray(data) ? data : (data.items || []);
+                                      var opts = lista.map(function(e) {
+                                                  return '<option value="' + e.id_estudiante + '">' + (e.nombre_completo || e.nombres || 'Sin nombre') + '</option>';
+                                                }).join('');
+                                      sel.innerHTML = '<option value="">Seleccionar estudiante...</option>' + opts;
+                                    }
+                                  } catch(ex) {
+                            console.error('Error cargando estudiantes:', ex);
+                          }
+                        };
+        // Fix 2: guardarNota - enviar id_estudiante como UUID string (sin parseInt)
+        (function() {
+              var _origGuardarNota = window.guardarNota;
+              window.guardarNota = async function(e) {
+                      if (e && e.preventDefault) e.preventDefault();
+                              var id_estudiante = document.getElementById('notaEstudiante').value;
+                      var materia = document.getElementById('notaMateria').value;
+                      var estrellas = parseInt(document.getElementById('notaEstrellas').value);
+                      var observacion = document.getElementById('notaObservacion').value;
+                      if (!id_estudiante) { alert('Selecciona un estudiante'); return; }
+                              try {
+                                        var res = await fetch(API_BASE + '/api/v1/notas/por-estudiante', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ id_estudiante: id_estudiante, materia: materia, estrellas: estrellas, observacion: observacion })
+                                                              });
+                                        if (res.ok) {
+                                                    alert('Nota registrada correctamente');
+                                                    document.getElementById('modalNota').classList.remove('active');
+                                                  } else {
+                                                    var err = await res.json();
+                                                    alert('Error: ' + (err.detail || JSON.stringify(err)));
+                                                  }
+                                      } catch(ex) {
+                                        alert('Error de red al registrar nota');
+                                      }
+                                    };
+            })();
+        </script>
 </body>
 </html>
